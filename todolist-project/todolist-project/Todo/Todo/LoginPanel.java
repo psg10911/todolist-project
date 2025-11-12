@@ -15,7 +15,7 @@ public class LoginPanel extends JPanel {
         setBackground(new Color(240, 240, 240));
 
         JPanel card = new JPanel();
-        card.setPreferredSize(new Dimension(400, 500));
+        card.setPreferredSize(new Dimension(400, 450));
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
         card.setLayout(null);

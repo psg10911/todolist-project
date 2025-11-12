@@ -20,7 +20,7 @@ public class ToDoListApp extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // [수업 자료] PDF의 cards = new CardLayout() [cite: 16]
+        // [수업 자료] PDF의 cards = new CardLayout()
         cardLayout = new CardLayout();
         // [수업 자료] PDF의 cardPanel = new JPanel(cards)
         cardPanel = new JPanel(cardLayout);
@@ -31,10 +31,12 @@ public class ToDoListApp extends JFrame {
         // 회원가입 화면
         SignupPanel signupPanel = new SignupPanel(this);
 
-        // 2. 메인 화면 패널 생성
-        MainPanel mainPanel = new MainPanel();
+        // --- [ 수정된 부분 ] ---
+        // 2. 메인 화면 패널 생성 (this를 전달)
+        MainPanel mainPanel = new MainPanel(this);
+        // --- [ 수정 완료 ] ---
 
-        // [수업 자료] PDF의 cardPanel.add(..., "이름") [cite: 35]
+        // [수업 자료] PDF의 cardPanel.add(..., "이름")
         cardPanel.add(loginPanel, "LOGIN");
         cardPanel.add(signupPanel, "SIGNUP");
         cardPanel.add(mainPanel, "MAIN");
@@ -48,8 +50,7 @@ public class ToDoListApp extends JFrame {
 
     /**
      * [수업 자료] PDF의 cards.show() 원리를 이용한 화면 전환 메서드
-     * 
-     * @param panelName "LOGIN" 또는 "MAIN"
+     * * @param panelName "LOGIN" 또는 "MAIN"
      */
     public void showPanel(String panelName) {
         cardLayout.show(cardPanel, panelName);
