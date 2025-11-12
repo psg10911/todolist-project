@@ -5,8 +5,13 @@ import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.awt.event.*;
 
+// 로그인 패널
+
 public class LoginPanel extends JPanel {
     private ToDoListApp mainApp;
+    // clearFields() 메서드가 접근할 수 있도록 클래스 필드로 선언
+    private JTextField idField;
+    private JPasswordField pwField;
 
     public LoginPanel(ToDoListApp mainApp) {
         this.mainApp = mainApp;
@@ -25,13 +30,12 @@ public class LoginPanel extends JPanel {
         title.setBounds(100, 40, 200, 40);
         card.add(title);
 
-        JTextField idField = new JTextField("아이디 입력");
-        idField.setForeground(Color.GRAY);
+        idField = new JTextField("아이디 입력");
         idField.setBounds(100, 120, 200, 40);
         addPlaceholderBehavior(idField, "아이디 입력");
         card.add(idField);
 
-        JPasswordField pwField = new JPasswordField("비밀번호 입력");
+        pwField = new JPasswordField("비밀번호 입력");
         pwField.setForeground(Color.GRAY);
         pwField.setEchoChar((char) 0);
         pwField.setBounds(100, 180, 200, 40);
@@ -48,7 +52,7 @@ public class LoginPanel extends JPanel {
         signupLabel.setBounds(100, 310, 200, 30);
         card.add(signupLabel);
 
-        // ✅ 회원가입 클릭 시 화면 전환
+        // 회원가입 클릭 시 화면 전환
         signupLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -56,9 +60,27 @@ public class LoginPanel extends JPanel {
             }
         });
 
-        loginButton.addActionListener(e -> mainApp.showPanel("MAIN"));
+        // 로그인 버튼 리스너
+        loginButton.addActionListener(e -> {
+            mainApp.showPanel("MAIN");
+            clearFields(); // 로그인 후 필드 초기화
+        });
+
         add(card);
     }
+
+    // 아이디와 비밀번호 필드를 placeholder 상태로 초기화합니다.
+
+    public void clearFields() {
+        idField.setText("아이디 입력");
+        idField.setForeground(Color.GRAY);
+
+        pwField.setText("비밀번호 입력");
+        pwField.setForeground(Color.GRAY);
+        pwField.setEchoChar((char) 0);
+    }
+
+    // 비밀번호 가리기 기능
 
     private void addPlaceholderBehavior(JTextComponent field, String placeholder) {
         field.addFocusListener(new FocusAdapter() {

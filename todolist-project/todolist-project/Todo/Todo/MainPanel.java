@@ -2,12 +2,9 @@ package Todo;
 
 import javax.swing.*;
 import java.awt.*;
-// ... (기존 import)
-import java.awt.Frame; // (이전 단계에서 추가됨)
-import javax.swing.JFrame; // (이전 단계에서 추가됨)
-import javax.swing.SwingUtilities; // (이전 단계에서 추가됨)
-
-// [추가] 
+import java.awt.Frame;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
@@ -17,14 +14,13 @@ import java.awt.event.ComponentEvent;
  */
 public class MainPanel extends JPanel {
 
-    private CalendarPanel calendarPanel;
-    private TaskPanel taskPanel;
+    private CalendarPanel calendarPanel;// 달력 패널
+    private TaskPanel taskPanel;// 할 일 목록 패널
 
-    // --- [ 수정된 부분 1: 필드 추가 ] ---
+    // 1: 필드 추가
     private ToDoListApp mainApp; // 화면 전환(로그아웃)을 위한 ToDoListApp 참조
-    // --- [ 수정 완료 ] ---
 
-    // --- [ 수정된 부분 2: 생성자 변경 ] ---
+    // 2: 생성자 변경
     public MainPanel(ToDoListApp mainApp) { // (ToDoListApp mainApp) 추가
         this.mainApp = mainApp; // 참조 저장
 
@@ -36,14 +32,12 @@ public class MainPanel extends JPanel {
         taskPanel = new TaskPanel();
 
         // 2. CalendarPanel (달력) 생성 (CENTER)
-        // *중요*: 캘린더가 TaskPanel을 제어할 수 있도록 참조를 넘겨줍니다.
+        // 캘린더가 TaskPanel을 제어할 수 있도록 참조를 넘겨줍니다.
         calendarPanel = new CalendarPanel(taskPanel);
 
         // [수업 자료] PDF의 add(..., BorderLayout.CENTER)
         add(calendarPanel, BorderLayout.CENTER);
         add(taskPanel, BorderLayout.EAST);
-
-        // --- [ 수정된 부분 3: 로그아웃 버튼 추가 ] ---
 
         // 3. 하단 로그아웃 버튼 패널 (SOUTH)
         JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0)); // 왼쪽 정렬
@@ -58,9 +52,6 @@ public class MainPanel extends JPanel {
         bottomBar.add(logoutButton);
         add(bottomBar, BorderLayout.SOUTH); // 메인 패널의 SOUTH에 추가
 
-        // --- [ 수정 완료 ] ---
-
-        // [추가] 이 코드로 교체합니다.
         // MainPanel이 화면에 표시될 때(componentShown)를 감지하는 리스너 추가
         addComponentListener(new ComponentAdapter() {
             private boolean isFirstTime = true; // 팝업이 한 번만 뜨도록 제어
@@ -95,7 +86,7 @@ public class MainPanel extends JPanel {
                 }
             }
 
-            // [추가] MainPanel이 다시 숨겨질 때 (로그아웃 시)
+            // MainPanel이 다시 숨겨질 때 (로그아웃 시)
             @Override
             public void componentHidden(ComponentEvent e) {
                 // 팝업이 한 번만 뜨도록 제어하는 플래그를

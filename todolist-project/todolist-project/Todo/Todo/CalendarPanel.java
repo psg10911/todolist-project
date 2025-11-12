@@ -10,9 +10,8 @@ import java.time.format.DateTimeFormatter;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
-/**
- * 좌측 캘린더 UI를 담당하는 패널 (JPanel).
- */
+// 좌측 캘린더 UI를 담당하는 패널 (JPanel)
+
 public class CalendarPanel extends JPanel {
 
     private JLabel monthYearLabel;
@@ -21,13 +20,13 @@ public class CalendarPanel extends JPanel {
     private TaskPanel taskPanel; // 할 일 목록 패널 참조
     private LocalDate selectedDate; // 선택된 날짜 저장 변수
 
-    // [수정됨] 정사각형 크기를 저장할 변수
+    // 정사각형 크기를 저장할 변수
     private Dimension squareCellSize = new Dimension(60, 60);
 
     public CalendarPanel(TaskPanel taskPanel) {
         this.taskPanel = taskPanel; // MainPanel로부터 참조를 받음
         this.currentDate = LocalDate.now();
-        this.selectedDate = LocalDate.now(); // ✅ [추가] selectedDate도 오늘로 초기화
+        this.selectedDate = LocalDate.now(); // selectedDate도 오늘로 초기화
 
         setLayout(new BorderLayout(10, 10));
 
@@ -38,7 +37,7 @@ public class CalendarPanel extends JPanel {
         taskPanel.loadTasksForDate(selectedDate); // 초기 로드 시 오늘 날짜의 할 일 목록 표시
     }
 
-    // 상단 (월 이동) 패널 생성 (이전 코드와 동일)
+    // 상단 (월 이동) 패널 생성
     private JPanel createTopPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         JButton todayButton = new JButton("Today");
@@ -71,7 +70,6 @@ public class CalendarPanel extends JPanel {
 
     // 날짜 변경 시 캘린더 업데이트 및 TaskPanel에 알림
     private void changeDate(LocalDate newDate) {
-        // ✅ [수정]
         // currentDate는 달력의 '월'을 제어하므로 newDate의 1일로 설정
         currentDate = newDate.withDayOfMonth(1);
         // selectedDate는 사용자가 클릭한 정확한 날짜
@@ -79,7 +77,7 @@ public class CalendarPanel extends JPanel {
 
         updateCalendar(); // 달력 다시 그리기
 
-        // ✅ [수정] TaskPanel에는 항상 selectedDate를 전달
+        // TaskPanel에는 항상 selectedDate를 전달
         taskPanel.loadTasksForDate(selectedDate);
     }
 
@@ -142,7 +140,7 @@ public class CalendarPanel extends JPanel {
         return panel;
     }
 
-    // [수정됨] updateCalendar 메서드 (정사각형 크기 적용)
+    // updateCalendar 메서드
     private void updateCalendar() {
         calendarGridPanel.removeAll();
         monthYearLabel.setText(currentDate.format(DateTimeFormatter.ofPattern("YYYY / MM")));
@@ -152,7 +150,7 @@ public class CalendarPanel extends JPanel {
         int dayOfWeek = firstDayOfMonth.getDayOfWeek().getValue() % 7; // 0(일)~6(토)
 
         for (int i = 0; i < dayOfWeek; i++) {
-            // [수정됨] 빈 라벨에도 크기 적용
+            // 빈 라벨에도 크기 적용
             JLabel blank = new JLabel("");
             blank.setPreferredSize(squareCellSize);
             calendarGridPanel.add(blank);
@@ -166,8 +164,6 @@ public class CalendarPanel extends JPanel {
 
             // [수정됨] 버튼에도 크기 적용
             dayButton.setPreferredSize(squareCellSize);
-
-            // ✅ --- [ 이 부분을 통째로 교체 ] ---
 
             // 이 버튼의 날짜
             LocalDate buttonDate = currentDate.withDayOfMonth(day);
@@ -185,8 +181,6 @@ public class CalendarPanel extends JPanel {
                 dayButton.setBackground(null);
                 dayButton.setOpaque(false);
             }
-
-            // ✅ --- [ 교체 끝 ] ---
 
             final int currentDay = day;
             dayButton.addActionListener(e -> {
