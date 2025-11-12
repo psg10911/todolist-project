@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter;
  * (간단한 GridLayout과 BorderLayout 사용)
  */
 public class TaskDialog extends JDialog {
-
+    
     private JTextField titleField;
     private JTextArea contentArea;
     private JTextField startDateField;
@@ -69,6 +69,7 @@ public class TaskDialog extends JDialog {
             }
             
             this.task = new Task(
+                
                 titleField.getText(),
                 contentArea.getText(),
                 startDateField.getText(),
