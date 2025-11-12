@@ -1,5 +1,6 @@
 package Todo;
 
+// [추가] RadioButton (중요도)
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
@@ -14,10 +15,6 @@ import javax.swing.text.AbstractDocument;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
-
-// [추가] RadioButton (중요도)
-import javax.swing.ButtonGroup;
-import javax.swing.JRadioButton;
 
 /**
  * 할 일을 추가하기 위한 모달 JDialog (팝업창).
@@ -128,6 +125,7 @@ public class TaskDialog extends JDialog {
         add(buttonPanel, BorderLayout.SOUTH);
 
         // 'Save' 버튼 리스너 - 변경 없음 (유효성 검사 등)
+        // 'Save' 버튼 리스너 부분 교체
         saveButton.addActionListener(e -> {
             if (titleField.getText().trim().isEmpty()) {
                 JOptionPane.showMessageDialog(this, "제목을 입력해주세요.", "Warning", JOptionPane.WARNING_MESSAGE);
@@ -153,13 +151,23 @@ public class TaskDialog extends JDialog {
                 return;
             }
 
-            // (참고: 현재 '중요도' 값은 Task 객체에 저장되지 않습니다.)
+            // ✅ 중요도 선택값 가져오기
+            int selectedPriority = 2;
+            if (prio1.isSelected())
+                selectedPriority = 1;
+            else if (prio2.isSelected())
+                selectedPriority = 2;
+            else if (prio3.isSelected())
+                selectedPriority = 3;
 
+            // ✅ 중요도까지 포함해서 Task 생성
             this.task = new Task(
                     titleField.getText(),
-                    contentArea.getText(), // 50자로 제한된 내용이 저장됨
+                    contentArea.getText(),
                     startDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                    endDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
+                    endDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                    selectedPriority);
+
             dispose(); // 팝업창 닫기
         });
 
