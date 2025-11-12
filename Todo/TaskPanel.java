@@ -1,126 +1,206 @@
 package Todo;
+
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.border.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 
 /**
- * 우측 할 일 목록(JTable)과 버튼을 담당하는 패널 (JPanel).
- * [수업 자료] JTable 예제를 활용합니다. [cite: 53, 55]
+ * [리팩토링된 클래스]
+ * Task 목록 UI를 총괄하는 메인 패널 (View/Controller).
+ * TaskRepository(Model)와 TaskCard(View)를 중재합니다.
  */
 public class TaskPanel extends JPanel {
 
     private JLabel selectedDateLabel;
-    private JTable table;
-    private DefaultTableModel tableModel; // [수업 자료] [cite: 127]
-    private LocalDate currentDate; // CalendarPanel에서 받아온 현재 날짜
+    private JPanel taskListPanel;
+    private LocalDate currentDate;
+    private JComboBox<String> sortComboBox;
 
-    // [수업 자료] PDF의 columnNames [] = { ... } [cite: 129]
-    private String[] columnNames = {"완료", "일정 제목", "시작일", "종료일"};
+    // [수정] 데이터 관리를 Repository에 위임
+    private TaskRepository repository;
 
     public TaskPanel() {
-        setLayout(new BorderLayout(5, 10));
-        setPreferredSize(new Dimension(400, 0)); // 너비 고정
+        this.repository = new TaskRepository(); // Repository 생성
 
-        // 1. 상단 날짜 레이블
+        setLayout(new BorderLayout(5, 10));
+        setPreferredSize(new Dimension(400, 0));
+
+        // 1. 상단 (날짜 + 정렬 + 검색)
+        JPanel topPanel = new JPanel(new BorderLayout());
         selectedDateLabel = new JLabel(" ", SwingConstants.CENTER);
         selectedDateLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
-        add(selectedDateLabel, BorderLayout.NORTH);
+        topPanel.add(selectedDateLabel, BorderLayout.CENTER);
 
-        // 2. 중앙 JTable
-        // [수업 자료] tableModel = new DefaultTableModel(columnNames, 0) [cite: 132-133]
-        tableModel = new DefaultTableModel(columnNames, 0) {
-            // "완료" 컬럼(0번 인덱스)은 Boolean 타입(체크박스)으로 설정
-            @Override
-            public Class<?> getColumnClass(int columnIndex) {
-                if (columnIndex == 0) {
-                    return Boolean.class;
-                }
-                return String.class;
-            }
-            // "완료" 컬럼 외에는 편집 불가능하게 설정
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return column == 0; // 0번 컬럼(체크박스)만 수정 가능
-            }
-        };
-        
-        // [수업 자료] table = new JTable(tableModel) [cite: 135]
-        table = new JTable(tableModel);
-        
-        // 컬럼 너비 간단하게 설정
-        table.getColumnModel().getColumn(0).setPreferredWidth(40);
-        table.getColumnModel().getColumn(1).setPreferredWidth(180);
+        JPanel sortSearchPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        String[] sortOptions = { "필터", "중요도순", "완료된순" }; // "필터"가 기본값
+        sortComboBox = new JComboBox<>(sortOptions);
+        JButton searchBtn = new JButton("🔍 검색");
+        sortSearchPanel.add(sortComboBox);
+        sortSearchPanel.add(searchBtn);
+        topPanel.add(sortSearchPanel, BorderLayout.EAST);
+        add(topPanel, BorderLayout.NORTH);
 
-        // [수업 자료] JScrollPane(table) [cite: 157-158]
-        JScrollPane scrollPane = new JScrollPane(table);
+        // 2. 중앙 리스트
+        taskListPanel = new JPanel();
+        taskListPanel.setLayout(new BoxLayout(taskListPanel, BoxLayout.Y_AXIS));
+        taskListPanel.setBackground(Color.WHITE);
+        JScrollPane scrollPane = new JScrollPane(taskListPanel);
+        scrollPane.setBorder(null);
         add(scrollPane, BorderLayout.CENTER);
 
-        // 3. 하단 버튼 패널 (PDF의 bottom 과 유사)
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        // 3. 하단 버튼
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
         JButton addTaskBtn = new JButton("할 일 추가");
-        JButton delTaskBtn = new JButton("할 일 삭제");
-        
-        buttonPanel.add(addTaskBtn);
-        buttonPanel.add(delTaskBtn);
-        add(buttonPanel, BorderLayout.SOUTH);
+        JButton delTaskBtn = new JButton("전체 삭제");
+        bottomPanel.add(addTaskBtn);
+        bottomPanel.add(delTaskBtn);
+        add(bottomPanel, BorderLayout.SOUTH);
 
-        // '할 일 추가' 버튼 리스너
-        addTaskBtn.addActionListener(e -> {
-            TaskDialog dialog = new TaskDialog((JFrame) SwingUtilities.getWindowAncestor(this), currentDate);
-            dialog.setVisible(true);
-
-            if (dialog.getTask() != null) {
-                Task newTask = dialog.getTask();
-                // (실제로는 DB 저장)
-                
-                // [수업 자료] tableModel.addRow(String[]) 
-                tableModel.addRow(newTask.toObjectArray());
-            }
-        });
-
-        // '할 일 삭제' 버튼 리스너
-        delTaskBtn.addActionListener(e -> {
-            // [수업 자료] PDF의 selectedIndex [cite: 128]와 유사
-            int selectedRow = table.getSelectedRow();
-            
-            if (selectedRow >= 0) {
-                int confirm = JOptionPane.showConfirmDialog(this,
-                        "이 할 일을 삭제하시겠습니까?", "삭제 확인", JOptionPane.YES_NO_OPTION);
-                if (confirm == JOptionPane.YES_OPTION) {
-                    // (실제로는 DB 삭제)
-                    
-                    // [수업 자료] tableModel.removeRow(selectedIndex) 
-                    tableModel.removeRow(selectedRow);
-                }
-            } else {
-                JOptionPane.showMessageDialog(this, "삭제할 할 일을 선택해주세요.");
-            }
-        });
+        // 4. 이벤트 리스너
+        addTaskBtn.addActionListener(e -> openAddTaskDialog());
+        delTaskBtn.addActionListener(e -> deleteCurrentTasks());
+        searchBtn.addActionListener(e -> openSearchDialog());
+        sortComboBox.addActionListener(e -> refreshTaskList());
     }
 
     /**
-     * CalendarPanel에서 호출하는 메서드.
-     * 날짜가 변경되면 해당 날짜의 할 일을 (가상으로) 로드합니다.
+     * '할 일 추가' 버튼 로직 (TaskDialog 호출)
+     */
+    private void openAddTaskDialog() {
+        JFrame owner = (JFrame) SwingUtilities.getWindowAncestor(this);
+        TaskDialog dialog = new TaskDialog(owner, currentDate, false);
+        dialog.setVisible(true);
+
+        Task newTask = dialog.getTask();
+        if (newTask != null && !"__DELETE__".equals(newTask.getTitle())) {
+            repository.addTask(newTask); // Repository에 추가
+            refreshTaskList();
+        }
+    }
+
+    /**
+     * '전체 삭제' 버튼 로직
+     */
+    private void deleteCurrentTasks() {
+        // (Repository에 데이터가 있는지 확인하는 것이 더 좋음)
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "현재 날짜(" + (currentDate != null ? currentDate.toString() : "전체") + ")의 할 일을 모두 삭제하시겠습니까?",
+                "삭제 확인", JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            repository.deleteAllTasks(currentDate); // Repository에서 삭제
+            refreshTaskList();
+        }
+    }
+
+    /**
+     * '검색' 버튼 로직 (SearchDialog 호출)
+     */
+    private void openSearchDialog() {
+        JFrame owner = (JFrame) SwingUtilities.getWindowAncestor(this);
+        // [수정] SearchDialog 생성. 'refreshCallback'으로 refreshTaskList() 전달
+        SearchDialog dialog = new SearchDialog(owner, repository, () -> refreshTaskList());
+        dialog.setVisible(true);
+    }
+
+    /**
+     * CalendarPanel에서 호출하는 날짜 변경 메서드
      */
     public void loadTasksForDate(LocalDate date) {
         this.currentDate = date;
-        String formattedDate = date.format(DateTimeFormatter.ofPattern("MM/dd/YYYY (E)"));
-        selectedDateLabel.setText(formattedDate);
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy년 MM월 dd일(E)");
+        selectedDateLabel.setText(date.format(fmt));
+        refreshTaskList();
+    }
 
-        // (실제로는 여기서 DB에서 'date'에 해당하는 할 일을 조회해야 합니다)
-        
-        // [수업 자료] PDF의 loadData() [cite: 144]와 유사한 역할
-        // [수업 자료] tableModel.setRowCount(0) [cite: 146] (목록 초기화)
-        tableModel.setRowCount(0); 
+    /**
+     * [리팩토링] 화면 갱신 (Model -> View)
+     * Repository에서 데이터를 가져와 TaskCard를 다시 그립니다.
+     */
+    private void refreshTaskList() {
+        taskListPanel.removeAll();
 
-        // 프론트엔드 데모용 가상 데이터
-        if (date.getDayOfMonth() == 10) {
-            tableModel.addRow(new Object[]{false, "자바 Swing 스터디", "2025-11-10", "2025-11-10"});
-            tableModel.addRow(new Object[]{true, "프로젝트 디자인 구상", "2025-11-10", "2025-11-10"});
-        } else if (date.getDayOfMonth() == 22) {
-            tableModel.addRow(new Object[]{false, "페르소나 데이터 만들기", "2025-11-22", "2025-11-25"});
+        // 1. Repository에서 필터링/정렬된 데이터 가져오기
+        String sortOption = (String) sortComboBox.getSelectedItem();
+        ArrayList<Task> tasks = repository.getFilteredAndSortedTasks(currentDate, sortOption);
+
+        // 2. TaskCard(View) 생성 및 이벤트 바인딩
+        for (Task task : tasks) {
+            TaskCard card = new TaskCard(task, task.getPriority());
+
+            // 2-1. 더블클릭(수정) 이벤트 바인딩
+            card.addEditListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    if (e.getClickCount() == 2) {
+                        openEditDialog(task); // 수정 다이얼로그 열기
+                    }
+                }
+            });
+
+            // 2-2. 체크박스 이벤트 바인딩
+            card.addCheckListener(e -> {
+                task.setCompleted(((JCheckBox) e.getSource()).isSelected());
+                // '완료된순' 정렬일 때만 즉시 새로고침 (기존 로직 유지)
+                if ("완료된순".equals(sortComboBox.getSelectedItem())) {
+                    refreshTaskList();
+                }
+            });
+
+            // 2-3. 순서 이동 이벤트 바인딩
+            card.addMoveUpListener(e -> {
+                repository.moveTaskUp(task);
+                refreshTaskList();
+            });
+            card.addMoveDownListener(e -> {
+                repository.moveTaskDown(task);
+                refreshTaskList();
+            });
+
+            // 3. 패널에 카드 추가
+            taskListPanel.add(Box.createVerticalStrut(8));
+            taskListPanel.add(card);
         }
+
+        taskListPanel.revalidate();
+        taskListPanel.repaint();
+    }
+
+    /**
+     * TaskCard 더블클릭 시 '수정' 다이얼로그 열기
+     * (TaskPanel의 내부 클래스 TaskCard에서 이동)
+     */
+    private void openEditDialog(Task task) {
+        JFrame owner = (JFrame) SwingUtilities.getWindowAncestor(TaskPanel.this);
+        TaskDialog dialog = new TaskDialog(owner, LocalDate.parse(task.getStartDate()), true);
+        dialog.fillFromTask(task);
+        dialog.setVisible(true);
+
+        Task updated = dialog.getTask();
+        if (updated != null) {
+            if ("__DELETE__".equals(updated.getTitle())) {
+                repository.deleteTask(task); // Repository에서 삭제
+            } else {
+                // Repository의 Task 객체 직접 수정 (기존 방식 유지)
+                task.setTitle(updated.getTitle());
+                task.setContent(updated.getContent());
+                task.setStartDate(updated.getStartDate());
+                task.setEndDate(updated.getEndDate());
+                task.setPriority(updated.getPriority());
+            }
+            refreshTaskList(); // 변경 사항 반영
+        }
+    }
+
+    /**
+     * NotificationPopup이 호출하는 메서드
+     * (Repository의 메서드를 대신 호출)
+     */
+    public int getIncompleteTaskCount() {
+        return repository.getIncompleteTaskCount();
     }
 }
