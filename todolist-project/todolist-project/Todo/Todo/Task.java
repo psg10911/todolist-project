@@ -12,11 +12,11 @@ public class Task {
     private int priority; // 중요도 (1=낮음, 2=보통, 3=높음)
     private boolean completed; // 완료 여부
 
-    // 🔹 기본 생성자 (필요 시)
+    // 기본 생성자
     public Task() {
     }
 
-    // 🔹 중요도 포함 생성자 (TaskDialog → TaskPanel로 전달)
+    // 중요도 포함 생성자 (TaskDialog → TaskPanel로 전달)
     public Task(String title, String content, String startDate, String endDate, int priority) {
         this.title = title;
         this.content = content;
@@ -26,12 +26,12 @@ public class Task {
         this.completed = false; // 새로 추가된 할 일은 기본적으로 미완료 상태
     }
 
-    // 🔹 중요도 생략 가능 (기존 코드 호환용)
+    // 중요도 생략 가능
     public Task(String title, String content, String startDate, String endDate) {
-        this(title, content, startDate, endDate, 2); // 기본 중요도: 2 (보통)
+        this(title, content, startDate, endDate, 2); // default 중요도: 2 (보통)
     }
 
-    // ✅ Getter / Setter
+    // Getter / Setter
     public String getTitle() {
         return title;
     }
@@ -80,10 +80,8 @@ public class Task {
         this.endDate = endDate;
     }
 
-    /**
-     * JTable 등에 데이터를 전달할 때 사용하기 위한 Object 배열 변환 메서드.
-     * (TaskPanel에서 tableModel.addRow(...) 등과 호환 가능)
-     */
+    // JTable 등에 데이터를 전달할 때 사용하기 위한 Object 배열 변환 메서드.(TaskPanel에서
+    // tableModel.addRow(...) 등과 호환 가능)
     public Object[] toObjectArray() {
         return new Object[] {
                 completed, // 0: 완료 여부
