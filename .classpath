@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+  <!-- 소스 폴더: .java가 들어있는 폴더 -->
+  <classpathentry kind="src" path="Todo/Todo"/>
+
+  <!-- JRE -->
+  <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+
+  <!-- MySQL 드라이버 JAR -->
+  <classpathentry kind="lib" path="Todo/lib/mysql-connector-j-9.5.0.jar"/>
+
+  <!-- 컴파일 산출물 폴더 -->
+  <classpathentry kind="output" path="bin"/>
+</classpath>

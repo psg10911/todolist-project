@@ -1,4 +1,5 @@
 package Todo;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -7,7 +8,9 @@ import java.awt.*;
  * [수업 자료] CardLayout을 사용해 로그인 화면과 메인 화면을 전환합니다.
  */
 public class ToDoListApp extends JFrame {
-
+    private JTextField iField;
+    private JPasswordField passwordField;
+    private JTextField namField;
     private CardLayout cardLayout;
     private JPanel cardPanel; // 카드 레이아웃을 적용할 패널 (PDF의 cardPanel)
 
@@ -19,17 +22,21 @@ public class ToDoListApp extends JFrame {
 
         // [수업 자료] PDF의 cards = new CardLayout() [cite: 16]
         cardLayout = new CardLayout();
-        // [수업 자료] PDF의 cardPanel = new JPanel(cards) 
+        // [수업 자료] PDF의 cardPanel = new JPanel(cards)
         cardPanel = new JPanel(cardLayout);
 
         // 1. 로그인 화면 패널 생성
         LoginPanel loginPanel = new LoginPanel(this);
-        
+
+        // 회원가입 화면
+        SignupPanel signupPanel = new SignupPanel(this);
+
         // 2. 메인 화면 패널 생성
         MainPanel mainPanel = new MainPanel();
 
         // [수업 자료] PDF의 cardPanel.add(..., "이름") [cite: 35]
         cardPanel.add(loginPanel, "LOGIN");
+        cardPanel.add(signupPanel, "SIGNUP");
         cardPanel.add(mainPanel, "MAIN");
 
         // 프레임에 cardPanel 추가
@@ -40,7 +47,8 @@ public class ToDoListApp extends JFrame {
     }
 
     /**
-     * [수업 자료] PDF의 cards.show()  원리를 이용한 화면 전환 메서드
+     * [수업 자료] PDF의 cards.show() 원리를 이용한 화면 전환 메서드
+     * 
      * @param panelName "LOGIN" 또는 "MAIN"
      */
     public void showPanel(String panelName) {
