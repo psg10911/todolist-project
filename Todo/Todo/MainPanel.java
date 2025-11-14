@@ -1,6 +1,8 @@
 package Todo;
-import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
 
 /**
  * 메인 화면 (로그인 후 보여지는 화면).
