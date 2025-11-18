@@ -1,4 +1,5 @@
 package Todo;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -11,6 +12,10 @@ public class ToDoListApp extends JFrame {
     private CardLayout cardLayout;
     private JPanel cardPanel; // 카드 레이아웃을 적용할 패널 (PDF의 cardPanel)
 
+    private LoginPanel loginPanel;
+    private SignupPanel signupPanel;
+    private MainPanel mainPanel;
+
     public ToDoListApp() {
         setTitle("투두리스트 프로그램");
         setSize(1000, 700);
@@ -19,17 +24,21 @@ public class ToDoListApp extends JFrame {
 
         // [수업 자료] PDF의 cards = new CardLayout() [cite: 16]
         cardLayout = new CardLayout();
-        // [수업 자료] PDF의 cardPanel = new JPanel(cards) 
+        // [수업 자료] PDF의 cardPanel = new JPanel(cards)
         cardPanel = new JPanel(cardLayout);
 
         // 1. 로그인 화면 패널 생성
-        LoginPanel loginPanel = new LoginPanel(this);
-        
+        loginPanel = new LoginPanel(this);
+
+        // 회원가입 화면
+        signupPanel = new SignupPanel(this);
+
         // 2. 메인 화면 패널 생성
-        MainPanel mainPanel = new MainPanel();
+        mainPanel = new MainPanel();
 
         // [수업 자료] PDF의 cardPanel.add(..., "이름") [cite: 35]
         cardPanel.add(loginPanel, "LOGIN");
+        cardPanel.add(signupPanel, "SIGNUP");
         cardPanel.add(mainPanel, "MAIN");
 
         // 프레임에 cardPanel 추가
@@ -40,11 +49,20 @@ public class ToDoListApp extends JFrame {
     }
 
     /**
-     * [수업 자료] PDF의 cards.show()  원리를 이용한 화면 전환 메서드
+     * [수업 자료] PDF의 cards.show() 원리를 이용한 화면 전환 메서드
+     * 
      * @param panelName "LOGIN" 또는 "MAIN"
      */
     public void showPanel(String panelName) {
         cardLayout.show(cardPanel, panelName);
+    }
+
+    // LoginPanel에서 성공하면 반드시 이 메서드를 호출하도록 바꿔줘.
+    public void initAfterLogin(String userId) {
+        // MainPanel 안의 TaskPanel 초기화: userId 주입 + 오늘 일정 로드
+        mainPanel.getTaskPanel().initAfterLogin(userId);
+        // 메인 화면으로 전환
+        showPanel("MAIN");
     }
 
     public static void main(String[] args) {
