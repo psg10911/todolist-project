@@ -29,4 +29,8 @@ public class MainPanel extends JPanel {
         add(calendarPanel, BorderLayout.CENTER);
         add(taskPanel, BorderLayout.EAST);
     }
+    public TaskPanel getTaskPanel() {
+        return taskPanel;
+    }
+
 }
