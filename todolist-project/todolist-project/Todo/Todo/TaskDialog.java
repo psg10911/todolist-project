@@ -30,7 +30,7 @@ public class TaskDialog extends JDialog {
     private JDateChooser startDateChooser;
     private JDateChooser endDateChooser;
 
-    // [추가] 중요도 버튼 필드
+    // 중요도 버튼 필드
     private ButtonGroup importanceGroup;
     private JRadioButton prio1, prio2, prio3;
 
@@ -39,117 +39,123 @@ public class TaskDialog extends JDialog {
     public TaskDialog(Frame owner, LocalDate selectedDate) {
         super(owner, "할일 추가하기", true); // true = Modal 팝업
 
-        // [수정] 새 컴포넌트가 들어갈 수 있도록 높이 살짝 증가 (350 -> 390)
-        setSize(400, 390);
-        setLocationRelativeTo(owner);
-        setLayout(new BorderLayout(10, 10));
+        // 새 컴포넌트가 들어갈 수 있도록 높이 살짝 증가 (350 -> 390)
+        setSize(400, 390);// 팝업창 크기 설정
+        setLocationRelativeTo(owner);// 화면 중앙에 팝업창 배치
+        setLayout(new BorderLayout(10, 10));// 패널 간격 설정
 
         // 1. 상단 입력 폼 패널 (GridLayout) - 변경 없음
-        JPanel formPanel = new JPanel(new GridLayout(3, 2, 5, 10));
-        formPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JPanel formPanel = new JPanel(new GridLayout(3, 2, 5, 10));// 3행 2열, 가로 5, 세로 10 간격
+        formPanel.setBorder(new EmptyBorder(10, 10, 10, 10));// 패널 여백 설정
 
-        formPanel.add(new JLabel("일정 제목:"));
-        titleField = new JTextField();
-        formPanel.add(titleField);
+        formPanel.add(new JLabel("일정 제목:"));// 제목 라벨
+        titleField = new JTextField();// 제목 입력 필드
+        formPanel.add(titleField);// 제목 입력 필드 추가
 
-        Date defaultDate = Date.from(selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date defaultDate = Date.from(selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant());// 선택된 날짜를 Date 객체로 변환
 
-        formPanel.add(new JLabel("시작일:"));
-        startDateChooser = new JDateChooser(defaultDate);
-        startDateChooser.setDateFormatString("yyyy-MM-dd");
-        formPanel.add(startDateChooser);
+        formPanel.add(new JLabel("시작일:"));// 시작일 라벨
+        startDateChooser = new JDateChooser(defaultDate);// 시작일 선택기
+        startDateChooser.setDateFormatString("yyyy-MM-dd");// 날짜 형식 설정
+        formPanel.add(startDateChooser);// 시작일 선택기 추가
 
-        formPanel.add(new JLabel("종료일:"));
-        endDateChooser = new JDateChooser(defaultDate);
-        endDateChooser.setDateFormatString("yyyy-MM-dd");
-        formPanel.add(endDateChooser);
+        formPanel.add(new JLabel("종료일:"));// 종료일 라벨
+        endDateChooser = new JDateChooser(defaultDate);// 종료일 선택기
+        endDateChooser.setDateFormatString("yyyy-MM-dd");// 날짜 형식 설정
+        formPanel.add(endDateChooser);// 종료일 선택기 추가
 
-        add(formPanel, BorderLayout.NORTH);
+        add(formPanel, BorderLayout.NORTH);// 상단 폼 패널 추가
 
-        // 2. 중앙 내용(Content) 패널 [대폭 수정]
-        JPanel contentPanel = new JPanel(new BorderLayout(0, 5));
-        contentPanel.setBorder(new EmptyBorder(0, 10, 0, 10));
-        contentPanel.add(new JLabel("일정 내용(최대 50자):"), BorderLayout.NORTH);
+        // 2. 중앙 내용(Content) 패널
+        JPanel contentPanel = new JPanel(new BorderLayout(0, 5));// 내용 패널 (세로 5 간격)
+        contentPanel.setBorder(new EmptyBorder(0, 10, 0, 10));// 패널 여백 설정
 
-        // [수정 1] JTextArea 크기 축소 (5줄 -> 3줄)
-        contentArea = new JTextArea(3, 20);
+         // 내용 라벨
+        contentPanel.add(new JLabel("일정 내용(최대 50자):"), BorderLayout.NORTH);// 내용 라벨 추가
+
+        // JTextArea 크기 축소 (5줄 -> 3줄)
+        contentArea = new JTextArea(3, 20);// 내용 입력 영역 (3줄)
         contentArea.setLineWrap(true); // 자동 줄바꿈
 
-        // [수정 2] 50자 제한 DocumentFilter 적용
+        // 50자 제한 DocumentFilter 적용
         ((AbstractDocument) contentArea.getDocument()).setDocumentFilter(new DocumentFilter() {
             @Override
             public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
                     throws BadLocationException {
                 // (현재 문서 길이) - (삭제될 글자 수) + (삽입될 글자 수)
-                int currentLength = fb.getDocument().getLength();
-                int newLength = currentLength - length + (text == null ? 0 : text.length());
+                int currentLength = fb.getDocument().getLength();// 현재 문서 길이
+                int newLength = currentLength - length + (text == null ? 0 : text.length());// 변경 후 길이 계산
 
                 if (newLength <= 50) {
                     // 50자 이내일 경우에만 변경 허용
-                    super.replace(fb, offset, length, text, attrs);
+                    super.replace(fb, offset, length, text, attrs);// 실제 변경 수행
                 }
                 // 50자를 넘으면 아무것도 하지 않음 (입력/붙여넣기 무시)
             }
         });
 
-        contentPanel.add(new JScrollPane(contentArea), BorderLayout.CENTER);
+        contentPanel.add(new JScrollPane(contentArea), BorderLayout.CENTER);// 내용 입력 영역 추가
 
         // [수정 3] 중요도 라디오버튼 패널 생성
-        JPanel importancePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel importancePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));// 중요도 패널
         // TitledBorder를 사용해 그룹 이름 표시
-        importancePanel.setBorder(BorderFactory.createTitledBorder("중요도"));
+        importancePanel.setBorder(BorderFactory.createTitledBorder("중요도"));// 중요도 그룹 테두리
 
         importanceGroup = new ButtonGroup(); // 하나만 선택되도록 그룹화
-        prio1 = new JRadioButton("1 (낮음)");
-        prio2 = new JRadioButton("2 (보통)");
-        prio3 = new JRadioButton("3 (높음)");
+        prio1 = new JRadioButton("1 (낮음)");// 낮음
+        prio2 = new JRadioButton("2 (보통)");// 보통
+        prio3 = new JRadioButton("3 (높음)");// 높음
+
+         // '2 (보통)'을 기본 선택값으로 설정
 
         prio2.setSelected(true); // '2 (보통)'을 기본값으로 선택
 
-        importanceGroup.add(prio1);
-        importanceGroup.add(prio2);
-        importanceGroup.add(prio3);
+        importanceGroup.add(prio1);// 그룹에 라디오버튼 추가
+        importanceGroup.add(prio2);// 그룹에 라디오버튼 추가
+        importanceGroup.add(prio3);// 그룹에 라디오버튼 추가
 
-        importancePanel.add(prio1);
-        importancePanel.add(prio2);
-        importancePanel.add(prio3);
+        importancePanel.add(prio1);// 중요도 1
+        importancePanel.add(prio2);// 중요도 2
+        importancePanel.add(prio3);// 중요도 3
 
         // [수정 3] 중요도 패널을 contentPanel의 아래쪽(SOUTH)에 추가
-        contentPanel.add(importancePanel, BorderLayout.SOUTH);
+        contentPanel.add(importancePanel, BorderLayout.SOUTH);// 중요도 패널 추가
 
-        add(contentPanel, BorderLayout.CENTER);
+        add(contentPanel, BorderLayout.CENTER);// 중앙 내용 패널 추가
 
         // 3. 하단 버튼 패널 - 변경 없음
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton saveButton = new JButton("Save");
-        JButton cancelButton = new JButton("Cancel");
-        buttonPanel.add(saveButton);
-        buttonPanel.add(cancelButton);
-        add(buttonPanel, BorderLayout.SOUTH);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));// 버튼 패널 (오른쪽 정렬)
+        JButton saveButton = new JButton("Save");// 저장 버튼
+        JButton cancelButton = new JButton("Cancel");// 취소 버튼
+        buttonPanel.add(saveButton);// 저장 버튼 추가
+        buttonPanel.add(cancelButton);// 취소 버튼 추가
+        add(buttonPanel, BorderLayout.SOUTH);// 하단 버튼 패널 추가
 
         // 'Save' 버튼 리스너 - 변경 없음 (유효성 검사 등)
         saveButton.addActionListener(e -> {
             if (titleField.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "제목을 입력해주세요.", "Warning", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, "제목을 입력해주세요.", "Warning", JOptionPane.WARNING_MESSAGE);// 경고창 표시
                 return;
             }
 
-            Date utilStartDate = startDateChooser.getDate();
-            Date utilEndDate = endDateChooser.getDate();
+            Date utilStartDate = startDateChooser.getDate();// 시작일 Date 객체
+            Date utilEndDate = endDateChooser.getDate();// 종료일 Date 객체
 
             if (utilStartDate == null || utilEndDate == null) {
-                JOptionPane.showMessageDialog(this, "시작일과 종료일을 모두 선택해주세요.", "Warning", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, "시작일과 종료일을 모두 선택해주세요.", "Warning", JOptionPane.WARNING_MESSAGE);// 경고창 표시
                 return;
             }
 
-            LocalDate startDate = utilStartDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-            LocalDate endDate = utilEndDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            LocalDate startDate = utilStartDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();// 시작일 LocalDate 객체
+            LocalDate endDate = utilEndDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();// 종료일 LocalDate 객체
+
+             // 시작일이 종료일보다 늦은 경우 오류 메시지 표시
 
             if (startDate.isAfter(endDate)) {
                 JOptionPane.showMessageDialog(this,
                         "오류: 시작일이 종료일보다 늦습니다.",
                         "날짜 오류",
-                        JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.ERROR_MESSAGE);// 오류 메시지 표시
                 return;
             }
 
