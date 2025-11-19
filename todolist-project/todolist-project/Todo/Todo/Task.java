@@ -11,10 +11,10 @@ public class Task {
 
     // TaskDialog에서 사용할 생성자
     public Task(String title, String content, String startDate, String endDate) {
-        this.title = title;
-        this.content = content;
-        this.startDate = startDate;
-        this.endDate = endDate;
+        this.title = title;// 제목
+        this.content = content;// 내용
+        this.startDate = startDate;// 시작일
+        this.endDate = endDate;// 종료일
         this.completed = false; // 새로 추가된 할 일은 항상 '미완료'
     }
 
@@ -25,10 +25,7 @@ public class Task {
     public String getEndDate() { return endDate; }
     public boolean isCompleted() { return completed; }
 
-    /**
-     * [수업 자료] JTable의 tableModel.addRow() 에 넣기 적합한
-     * Object 배열 형태로 데이터를 변환합니다.
-     */
+    // Setters
     public Object[] toObjectArray() {
         return new Object[]{
             completed, // 0번: 완료 여부 (Boolean)
