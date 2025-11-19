@@ -1,35 +1,35 @@
 package Todo;
+
 import javax.swing.*;
 import java.awt.*;
 
-/**
- * 메인 JFrame 클래스.
- * [수업 자료] CardLayout을 사용해 로그인 화면과 메인 화면을 전환합니다.
- */
+//메인 JFrame 클래스. CardLayout으로 로그인 화면->메인 화면 전환
+
 public class ToDoListApp extends JFrame {
 
     private CardLayout cardLayout;
-    private JPanel cardPanel; // 카드 레이아웃을 적용할 패널 (PDF의 cardPanel)
+    private JPanel cardPanel; // 카드 레이아웃을 적용
+
+    private LoginPanel loginPanel;
+    private SignupPanel signupPanel;
+    private MainPanel mainPanel;
 
     public ToDoListApp() {
-        setTitle("투두리스트 프로그램");
+        setTitle("Todo 리스트 프로그램");
         setSize(1000, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // [수업 자료] PDF의 cards = new CardLayout() [cite: 16]
         cardLayout = new CardLayout();
-        // [수업 자료] PDF의 cardPanel = new JPanel(cards) 
         cardPanel = new JPanel(cardLayout);
 
-        // 1. 로그인 화면 패널 생성
-        LoginPanel loginPanel = new LoginPanel(this);
-        
-        // 2. 메인 화면 패널 생성
-        MainPanel mainPanel = new MainPanel();
+        //  로그인,회원가입,main 화면 
+        loginPanel = new LoginPanel(this); 
+        signupPanel = new SignupPanel(this);
+        mainPanel = new MainPanel();
 
-        // [수업 자료] PDF의 cardPanel.add(..., "이름") [cite: 35]
         cardPanel.add(loginPanel, "LOGIN");
+        cardPanel.add(signupPanel, "SIGNUP");
         cardPanel.add(mainPanel, "MAIN");
 
         // 프레임에 cardPanel 추가
@@ -39,16 +39,24 @@ public class ToDoListApp extends JFrame {
         cardLayout.show(cardPanel, "LOGIN");
     }
 
-    /**
-     * [수업 자료] PDF의 cards.show()  원리를 이용한 화면 전환 메서드
-     * @param panelName "LOGIN" 또는 "MAIN"
-     */
+    
+     
+     //panelName "LOGIN", "MAIN" ,"SIGNUP"
+     
+    
     public void showPanel(String panelName) {
         cardLayout.show(cardPanel, panelName);
     }
 
+    // LoginPanel에서 성공하면 호출
+    public void initAfterLogin(String userId) {
+        
+        mainPanel.getTaskPanel().initAfterLogin(userId); // MainPanel 안의 TaskPanel 초기화: userId 주입 + 오늘 일정 로드
+        showPanel("MAIN"); // 메인 화면으로 전환
+    }
+
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
+        SwingUtilities.invokeLater(() -> { //EDT(스레드) 실행
             ToDoListApp app = new ToDoListApp();
             app.setVisible(true);
         });

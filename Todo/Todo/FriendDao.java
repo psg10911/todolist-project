@@ -1,4 +1,4 @@
-package com.todo;
+package Todo;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -7,7 +7,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FriendDAO {
+public class FriendDao {
 
     // 1. 친구 요청 보내기
     public boolean requestFriend(String myUserId, String friendId) {
