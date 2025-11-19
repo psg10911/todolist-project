@@ -13,7 +13,7 @@ public class LoginPanel extends JPanel {
     // this.onLoginSuccess = c;
     // }
     public LoginPanel(ToDoListApp mainApp) {
-        this.mainApp = mainApp;
+        this.mainApp = mainApp; // 메인 앱 참조 저장
         
         setLayout(new GridBagLayout());
         setBackground(new Color(240, 240, 240));
