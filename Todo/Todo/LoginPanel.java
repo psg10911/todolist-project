@@ -7,52 +7,59 @@ import java.awt.event.*;
 
 public class LoginPanel extends JPanel {
     private ToDoListApp mainApp;
-    // private java.util.function.Consumer<String> onLoginSuccess;
 
-    // public void setOnLoginSuccess(java.util.function.Consumer<String> c) {
-    // this.onLoginSuccess = c;
-    // }
     public LoginPanel(ToDoListApp mainApp) {
-        this.mainApp = mainApp; // 메인 앱 참조 저장
+        this.mainApp = mainApp;
         
         setLayout(new GridBagLayout());
-        setBackground(new Color(240, 240, 240));
+        setBackground(Theme.BACKGROUND); // 전체 배경색
 
+        // 카드(박스) 영역
         JPanel card = new JPanel();
         card.setPreferredSize(new Dimension(400, 500));
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
+        card.setBackground(Theme.CARD_BG);
+        card.setBorder(BorderFactory.createLineBorder(Theme.BORDER, 1));
         card.setLayout(null);
 
+        // 제목
         JLabel title = new JLabel("투두캘린더", SwingConstants.CENTER);
-        title.setFont(new Font("맑은 고딕", Font.BOLD, 26));
-        title.setBounds(100, 40, 200, 40);
+        title.setFont(Theme.FONT_BOLD_24);
+        title.setForeground(Theme.TEXT_MAIN);
+        title.setBounds(100, 50, 200, 40);
         card.add(title);
 
-        JTextField idField = new JTextField("아이디 입력");
-        idField.setForeground(Color.GRAY);
-        idField.setBounds(100, 120, 200, 40);
-        addPlaceholderBehavior(idField, "아이디 입력");
+        // 아이디 필드
+        JTextField idField = new JTextField("  아이디 입력");
+        Theme.styleTextField(idField);
+        idField.setForeground(Theme.TEXT_SUB);
+        idField.setBounds(50, 130, 300, 45);
+        addPlaceholderBehavior(idField, "  아이디 입력");
         card.add(idField);
 
-        JPasswordField pwField = new JPasswordField("비밀번호 입력");
-        pwField.setForeground(Color.GRAY);
+        // 비밀번호 필드
+        JPasswordField pwField = new JPasswordField("  비밀번호 입력");
+        Theme.styleTextField(pwField);
+        pwField.setForeground(Theme.TEXT_SUB);
         pwField.setEchoChar((char) 0);
-        pwField.setBounds(100, 180, 200, 40);
-        addPlaceholderBehavior(pwField, "비밀번호 입력");
+        pwField.setBounds(50, 190, 300, 45);
+        addPlaceholderBehavior(pwField, " 비밀번호 입력");
         card.add(pwField);
 
+        // 로그인 버튼
         JButton loginButton = new JButton("로그인하기");
-        loginButton.setBounds(100, 250, 200, 40);
+        Theme.styleButton(loginButton);
+        loginButton.setBounds(50, 270, 300, 45);
         card.add(loginButton);
 
+        // 회원가입 링크
         JLabel signupLabel = new JLabel("회원가입", SwingConstants.CENTER);
-        signupLabel.setFont(new Font("맑은 고딕", Font.PLAIN, 12));
-        signupLabel.setForeground(Color.BLUE);
-        signupLabel.setBounds(100, 310, 200, 30);
+        signupLabel.setFont(Theme.FONT_REGULAR_12);
+        signupLabel.setForeground(Theme.PRIMARY);
+        signupLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        signupLabel.setBounds(100, 330, 200, 30);
         card.add(signupLabel);
 
-        // ✅ 회원가입 클릭 시 화면 전환
+        // 이벤트 리스너
         signupLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -61,30 +68,23 @@ public class LoginPanel extends JPanel {
         });
 
         loginButton.addActionListener(e -> {
-            // 원본 문자열 먼저 가져오기 (trim 전에)
             String rawId = idField.getText();
             String rawPw = new String(pwField.getPassword());
 
-            // ✅ 플레이스홀더면 빈 문자열로 간주
             if ("아이디 입력".equals(rawId)) rawId = "";
             if ("비밀번호 입력".equals(rawPw)) rawPw = "";
 
-            // 앞뒤 공백 제거
             String id = rawId.trim();
             String pw = rawPw.trim();
 
-            // 빈값 체크
             if (id.isEmpty() || pw.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "아이디와 비밀번호를 입력하세요.");
                 return;
             }
 
-            // DB 조회
             boolean success = UserSql.loginUser(id, pw);
-
             if (success) {
-                // mainApp.showPanel("MAIN");
-                mainApp.initAfterLogin(id);  // TaskPanel에 userId주입
+                mainApp.initAfterLogin(id);
             } else {
                 JOptionPane.showMessageDialog(this, "아이디 또는 비밀번호가 올바르지 않습니다.");
             }
@@ -97,21 +97,26 @@ public class LoginPanel extends JPanel {
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                if (field.getText().equals(placeholder)) {
+                // 텍스트 내용 대신 "색상"으로 판단 (더 정확함)
+                // 글자색이 '연한 회색(TEXT_SUB)'이면 플레이스홀더 상태임
+                if (field.getForeground().equals(Theme.TEXT_SUB)) {
                     field.setText("");
-                    field.setForeground(Color.BLACK);
-                    if (field instanceof JPasswordField)
-                        ((JPasswordField) field).setEchoChar('●');
+                    field.setForeground(Theme.TEXT_MAIN); // 입력 시 진한 색으로 변경
+                    if (field instanceof JPasswordField) {
+                        ((JPasswordField) field).setEchoChar('●'); // 비밀번호 마스킹 켜기
+                    }
                 }
             }
 
             @Override
             public void focusLost(FocusEvent e) {
+                // 비어있으면 다시 플레이스홀더로 복구
                 if (field.getText().isEmpty()) {
-                    field.setForeground(Color.GRAY);
+                    field.setForeground(Theme.TEXT_SUB); // 다시 연한 회색으로
                     field.setText(placeholder);
-                    if (field instanceof JPasswordField)
-                        ((JPasswordField) field).setEchoChar((char) 0);
+                    if (field instanceof JPasswordField) {
+                        ((JPasswordField) field).setEchoChar((char) 0); // 마스킹 끄기 (글자 보이게)
+                    }
                 }
             }
         });

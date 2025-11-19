@@ -11,61 +11,65 @@ public class SignupPanel extends JPanel {
     public SignupPanel(ToDoListApp mainApp) {
         this.mainApp = mainApp;
 
-        // 중앙 정렬
         setLayout(new GridBagLayout());
-        setBackground(new Color(240, 240, 240));
+        setBackground(Theme.BACKGROUND);
 
-        // 카드 영역 (흰색 네모)
         JPanel card = new JPanel();
         card.setPreferredSize(new Dimension(400, 450));
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
+        card.setBackground(Theme.CARD_BG);
+        card.setBorder(BorderFactory.createLineBorder(Theme.BORDER, 1));
         card.setLayout(null);
 
-        // 제목
         JLabel title = new JLabel("회원가입", SwingConstants.CENTER);
-        title.setFont(new Font("맑은 고딕", Font.BOLD, 26));
+        title.setFont(Theme.FONT_BOLD_24);
+        title.setForeground(Theme.TEXT_MAIN);
         title.setBounds(100, 40, 200, 40);
         card.add(title);
 
-        // 아이디 입력
-        JTextField idField = new JTextField("아이디 입력");
-        idField.setForeground(Color.GRAY);
-        idField.setBounds(100, 120, 200, 40);
-        addPlaceholderBehavior(idField, "아이디 입력");
+        JTextField idField = new JTextField("  아이디 입력");
+        Theme.styleTextField(idField);
+        idField.setForeground(Theme.TEXT_SUB);
+        idField.setBounds(50, 110, 300, 45);
+        addPlaceholderBehavior(idField, "  아이디 입력");
         card.add(idField);
 
-        // 비밀번호 입력
-        JPasswordField pwField = new JPasswordField("비밀번호 입력");
-        pwField.setForeground(Color.GRAY);
+        JPasswordField pwField = new JPasswordField("  비밀번호 입력");
+        Theme.styleTextField(pwField);
+        pwField.setForeground(Theme.TEXT_SUB);
         pwField.setEchoChar((char) 0);
-        pwField.setBounds(100, 180, 200, 40);
-        addPlaceholderBehavior(pwField, "비밀번호 입력");
+        pwField.setBounds(50, 170, 300, 45);
+        addPlaceholderBehavior(pwField, "  비밀번호 입력");
         card.add(pwField);
 
-        // 회원가입 완료 버튼
         JButton signupButton = new JButton("회원가입 완료");
-        signupButton.setBounds(100, 250, 200, 40);
+        Theme.styleButton(signupButton);
+        signupButton.setBounds(50, 240, 300, 45);
         card.add(signupButton);
 
-        // 로그인으로 돌아가기 라벨
         JLabel backLabel = new JLabel("로그인으로 돌아가기", SwingConstants.CENTER);
-        backLabel.setFont(new Font("맑은 고딕", Font.PLAIN, 12));
-        backLabel.setForeground(Color.BLUE);
-        backLabel.setBounds(100, 310, 200, 30);
+        backLabel.setFont(Theme.FONT_REGULAR_12);
+        backLabel.setForeground(Theme.PRIMARY);
+        backLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        backLabel.setBounds(100, 300, 200, 30);
         card.add(backLabel);
 
-        // ✅ 회원가입 완료 클릭 시 바로 로그인 화면으로 이동
         signupButton.addActionListener(e -> {
             String id = idField.getText();
             String pw = new String(pwField.getPassword());
+            // 플레이스홀더 처리 로직이 필요하다면 추가 (생략 시 그대로 전송될 수 있음)
+            if(id.equals("아이디 입력")) id = "";
+            if(pw.equals("비밀번호 입력")) pw = "";
+            
+            if(id.trim().isEmpty() || pw.trim().isEmpty()){
+                JOptionPane.showMessageDialog(this, "정보를 입력해주세요.");
+                return;
+            }
+
             UserSql.insertUser(id, pw);
             JOptionPane.showMessageDialog(this, "회원가입이 완료되었습니다!");
             mainApp.showPanel("LOGIN");
         });
 
-        
-        // ← 로그인으로 돌아가기 클릭 시
         backLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -76,26 +80,30 @@ public class SignupPanel extends JPanel {
         add(card);
     }
 
-    // placeholder 동작 (아이디/비밀번호 입력창 공용)
-    private void addPlaceholderBehavior(JTextComponent field, String placeholder) {
+   private void addPlaceholderBehavior(JTextComponent field, String placeholder) {
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                if (field.getText().equals(placeholder)) {
+                // 텍스트 내용 대신 "색상"으로 판단 (더 정확함)
+                // 글자색이 '연한 회색(TEXT_SUB)'이면 플레이스홀더 상태임
+                if (field.getForeground().equals(Theme.TEXT_SUB)) {
                     field.setText("");
-                    field.setForeground(Color.BLACK);
-                    if (field instanceof JPasswordField)
-                        ((JPasswordField) field).setEchoChar('●');
+                    field.setForeground(Theme.TEXT_MAIN); // 입력 시 진한 색으로 변경
+                    if (field instanceof JPasswordField) {
+                        ((JPasswordField) field).setEchoChar('●'); // 비밀번호 마스킹 켜기
+                    }
                 }
             }
 
             @Override
             public void focusLost(FocusEvent e) {
+                // 비어있으면 다시 플레이스홀더로 복구
                 if (field.getText().isEmpty()) {
-                    field.setForeground(Color.GRAY);
+                    field.setForeground(Theme.TEXT_SUB); // 다시 연한 회색으로
                     field.setText(placeholder);
-                    if (field instanceof JPasswordField)
-                        ((JPasswordField) field).setEchoChar((char) 0);
+                    if (field instanceof JPasswordField) {
+                        ((JPasswordField) field).setEchoChar((char) 0); // 마스킹 끄기 (글자 보이게)
+                    }
                 }
             }
         });
