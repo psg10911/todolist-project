@@ -4,6 +4,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class TaskDialog extends JDialog {
@@ -14,6 +15,11 @@ public class TaskDialog extends JDialog {
     private JTextField endDateField;
     private JCheckBox completedCheck;
 
+    //라디오 버튼
+    private JRadioButton priLowBtn;     
+    private JRadioButton priMidBtn;     
+    private JRadioButton priHighBtn;    
+
     private boolean editMode;
     private Task workingCopy;
     private Task resultTask = null;
@@ -21,7 +27,7 @@ public class TaskDialog extends JDialog {
     private void buildUI(LocalDate defaultDate, String dialogTitle) {
         setTitle(dialogTitle);
         setModal(true);
-        setSize(450, 450);
+        setSize(450, 520);   // ★ 살짝 증가 (라디오 버튼 추가)
         setLayout(new BorderLayout(10, 10));
         setLocationRelativeTo(getOwner());
         getContentPane().setBackground(Color.WHITE); // 배경 흰색
@@ -44,27 +50,66 @@ public class TaskDialog extends JDialog {
         Theme.styleTextField(titleField);
         formPanel.add(titleField, gbc);
 
-        String defaultDateStr = (defaultDate != null)
-                ? defaultDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
-                : LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        // String defaultDateStr = (defaultDate != null)
+        //         ? defaultDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        //         : LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        
+                // 수정: 기본값을 "yyyy-MM-dd HH:mm"으로 만들기
+        LocalDateTime baseDateTime = (defaultDate != null)
+                ? defaultDate.atTime(0, 0)
+                : LocalDateTime.now();
 
+        String defaultDateTimeStr =
+        baseDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        
         // 시작일
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.2;
         formPanel.add(new JLabel("시작일"), gbc);
-        
+
         gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 0.8;
-        startDateField = new JTextField(defaultDateStr);
+        startDateField = new JTextField(defaultDateTimeStr);   // 수정
         Theme.styleTextField(startDateField);
         formPanel.add(startDateField, gbc);
 
         // 종료일
         gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.2;
         formPanel.add(new JLabel("종료일"), gbc);
-        
+
         gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 0.8;
-        endDateField = new JTextField(defaultDateStr);
+        endDateField = new JTextField(defaultDateTimeStr);     //  수정
         Theme.styleTextField(endDateField);
         formPanel.add(endDateField, gbc);
+
+
+        // 중요도 섹션
+        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.2;
+        formPanel.add(new JLabel("중요도"), gbc);
+
+        gbc.gridx = 1; gbc.gridy = 3; gbc.weightx = 0.8;
+
+        priLowBtn = new JRadioButton("높음");   // 1
+        priMidBtn = new JRadioButton("보통");   // 2
+        priHighBtn = new JRadioButton("낮음");  // 3
+
+        priLowBtn.setBackground(Color.WHITE);
+        priMidBtn.setBackground(Color.WHITE);
+        priHighBtn.setBackground(Color.WHITE);
+
+        ButtonGroup group = new ButtonGroup();
+        group.add(priLowBtn);
+        group.add(priMidBtn);
+        group.add(priHighBtn);
+
+        // 새 일정 추가 시 기본값은 "보통"
+        priMidBtn.setSelected(true);
+
+        JPanel priPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        priPanel.setBackground(Color.WHITE);
+        priPanel.add(priLowBtn);
+        priPanel.add(priMidBtn);
+        priPanel.add(priHighBtn);
+
+        formPanel.add(priPanel, gbc);
 
         add(formPanel, BorderLayout.NORTH);
 
@@ -115,21 +160,42 @@ public class TaskDialog extends JDialog {
             String end   = endDateField.getText().trim();
             boolean completed = completedCheck.isSelected();
 
+
             if (title.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "제목을 입력해주세요.", "알림", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
+            //  날짜/시간 비어 있으면 null 처리
+            if (start.isEmpty()) start = null;
+            if (end.isEmpty())   end   = null;
+
+            // 날짜만 쓴 경우("yyyy-MM-dd")에는 00:00 붙여주기
+            if (start != null && start.length() == 10) { // yyyy-MM-dd
+                start = start + " 00:00";
+            }
+            if (end != null && end.length() == 10) {
+                end = end + " 00:00";
+            }
+
+            //  priority 값 추출
+            int priority = 2; // 기본값
+            if (priLowBtn.isSelected()) priority = 1;
+            if (priMidBtn.isSelected()) priority = 2;
+            if (priHighBtn.isSelected()) priority = 3;
+
             if (editMode) {
                 workingCopy.setTitle(title);
                 workingCopy.setContent(content);
-                workingCopy.setStartDate(start.isEmpty() ? null : start);
-                workingCopy.setEndDate(end.isEmpty() ? null : end);
+                workingCopy.setStartDate(start);
+                workingCopy.setEndDate(end);
                 workingCopy.setCompleted(completed);
+                workingCopy.setPriority(priority); 
                 resultTask = workingCopy;
             } else {
                 Task newTask = new Task(title, content, start, end);
                 newTask.setCompleted(completed);
+                newTask.setPriority(priority); 
                 resultTask = newTask;
             }
             dispose();
@@ -158,6 +224,12 @@ public class TaskDialog extends JDialog {
         startDateField.setText(workingCopy.getStartDate() == null ? "" : workingCopy.getStartDate());
         endDateField.setText(workingCopy.getEndDate() == null ? "" : workingCopy.getEndDate());
         completedCheck.setSelected(workingCopy.isCompleted());
+
+        //  기존 priority 값 선택 적용
+        int pri = workingCopy.getPriority();
+        if (pri == 1) priLowBtn.setSelected(true);
+        else if (pri == 3) priHighBtn.setSelected(true);
+        else priMidBtn.setSelected(true); // 나머지는 보통
     }
 
     public Task getTask() {

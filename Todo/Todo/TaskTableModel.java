@@ -6,7 +6,7 @@ import java.util.List;
 
 public class TaskTableModel extends AbstractTableModel {
 
-    private final String[] columns = {"완료", "일정 제목", "시작일", "종료일"}; // 화면에 보일 컬럼만
+    private final String[] columns = {"완료", "일정 제목", "시작일", "종료일", "중요도"};
     private final List<Task> rows = new ArrayList<>();
 
     @Override public int getRowCount() { return rows.size(); }
@@ -15,12 +15,13 @@ public class TaskTableModel extends AbstractTableModel {
 
     @Override
     public Class<?> getColumnClass(int c) {
-        return (c == 0) ? Boolean.class : String.class;
+        if (c == 0) return Boolean.class;
+        return String.class;
     }
 
     @Override
     public boolean isCellEditable(int r, int c) {
-        return c == 0; // 체크박스만 직접 수정 가능(완료 토글)
+        return c == 0;
     }
 
     @Override
@@ -31,6 +32,9 @@ public class TaskTableModel extends AbstractTableModel {
             case 1: return t.getTitle();
             case 2: return t.getStartDate();
             case 3: return t.getEndDate();
+            case 4:
+                int p = t.getPriority();
+                return (p == 1 ? "높음" : p == 2 ? "보통" : "낮음");
         }
         return null;
     }
@@ -40,12 +44,10 @@ public class TaskTableModel extends AbstractTableModel {
         Task t = rows.get(r);
         if (c == 0 && aValue instanceof Boolean) {
             t.setCompleted((Boolean) aValue);
-            // TODO: 필요하면 여기서 즉시 DB UPDATE(t) 호출 가능
         }
         fireTableCellUpdated(r, c);
     }
 
-    
     public void addTask(Task t) {
         rows.add(t);
         int idx = rows.size() - 1;
@@ -67,4 +69,15 @@ public class TaskTableModel extends AbstractTableModel {
     }
 
     public List<Task> getAll() { return rows; }
+
+    // ★ 반드시 필요 — 내부 클래스 삭제 후 외부로 옮긴 moveRow
+    public void moveRow(int from, int to) {
+        if (from == to) return;
+        Task t = rows.remove(from);
+        rows.add(to, t);
+
+        int a = Math.min(from, to);
+        int b = Math.max(from, to);
+        fireTableRowsUpdated(a, b);
+    }
 }

@@ -10,7 +10,11 @@ public class Task {
     private String endDate;
     private boolean completed;
 
-    public Task() {}
+    private int priority;    // ★ 추가됨: 1=높음, 2=보통, 3=낮음
+
+    public Task() {
+        this.priority = 2; // 기본 보통
+    }
 
     public Task(String title, String content, String startDate, String endDate) {
         this.title = title;
@@ -18,6 +22,7 @@ public class Task {
         this.startDate = startDate;
         this.endDate = endDate;
         this.completed = false;
+        this.priority = 2; // 보통
     }
 
     public Task(int id, String userId, String title, String content,
@@ -29,9 +34,10 @@ public class Task {
         this.startDate = startDate;
         this.endDate = endDate;
         this.completed = completed;
+        this.priority = 2;
     }
 
-    //워킹카피(복사 편집)용 복사 생성자 
+    // 워킹카피
     public Task(Task src) {
         if (src == null) return;
         this.id = src.id;
@@ -41,9 +47,10 @@ public class Task {
         this.startDate = src.startDate;
         this.endDate = src.endDate;
         this.completed = src.completed;
+        this.priority = src.priority;   // ★ 복사 추가
     }
 
-    // getters / setters
+    // GET/SET
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
@@ -64,4 +71,7 @@ public class Task {
 
     public boolean isCompleted() { return completed; }
     public void setCompleted(boolean completed) { this.completed = completed; }
+
+    public int getPriority() { return priority; }        // ★ 추가
+    public void setPriority(int priority) { this.priority = priority; } 
 }
