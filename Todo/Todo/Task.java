@@ -25,6 +25,22 @@ public class Task {
         this.priority = 2; // 보통
     }
 
+    /**
+     * DB에서 값을 읽어올 때 사용하는 생성자 (priority 포함)
+     */
+    public Task(int id, String userId, String title, String content,
+                String startDate, String endDate, boolean completed, int priority) { 
+        this.id = id;
+        this.userId = userId;
+        this.title = title;
+        this.content = content;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.completed = completed;
+        this.priority = priority; // DB에서 읽어온 priority 값 설정
+    }
+
+    // DB에서 priority를 명시적으로 읽어오지 않았을 경우를 위한 오버로드 (호환성 유지)
     public Task(int id, String userId, String title, String content,
                 String startDate, String endDate, boolean completed) {
         this.id = id;
@@ -34,7 +50,7 @@ public class Task {
         this.startDate = startDate;
         this.endDate = endDate;
         this.completed = completed;
-        this.priority = 2;
+        this.priority = 2; // 기본값 설정
     }
 
     // 워킹카피

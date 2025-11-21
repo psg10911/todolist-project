@@ -41,8 +41,11 @@ public class ToDoListApp extends JFrame {
         cardLayout.show(cardPanel, panelName);
     }
 
+    // LoginPanel에서 성공하면 호출
     public void initAfterLogin(String userId) {
-        mainPanel.getTaskPanel().initAfterLogin(userId); 
+        mainPanel.getTaskPanel().initAfterLogin(userId);
+        mainPanel.setCurrentUserId(userId);
+        mainPanel.getFriendListPanel().setUser(userId);
         showPanel("MAIN"); 
     }
 
