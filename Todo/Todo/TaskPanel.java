@@ -90,11 +90,20 @@ public class TaskPanel extends JPanel {
             String sel = (String) sortComboBox.getSelectedItem();
             sorter.setSortKeys(null);
 
-            if ("최신순".equals(sel)) {
-                sorter.setComparator(2, (a, b) -> nullSafeStringCompare((String) b, (String) a));
-                sorter.toggleSortOrder(2);
+            // if ("최신순".equals(sel)) {
+            //     sorter.setComparator(2, (a, b) -> nullSafeStringCompare((String) b, (String) a));
+            //     sorter.toggleSortOrder(2);
 
-            } else if ("제목순".equals(sel)) {
+            // } else 
+            if ("최신순".equals(sel)) {
+                    sortByLatestIdDesc();
+                    return; // 아래 기본 sorter 로직은 건너뜀
+                }
+
+                // ▼ 나머지(제목순/완료된순)는 기존 sorter 사용
+                sorter.setSortKeys(null); // 초기화
+
+            if ("제목순".equals(sel)) {
                 sorter.toggleSortOrder(1);
 
             } else if ("완료된순".equals(sel)) {
@@ -110,7 +119,7 @@ public class TaskPanel extends JPanel {
                 sorter.toggleSortOrder(4);
             }
         });
-
+        
         searchBtn.addActionListener(e -> openSearchDialog());
 
         addBtn.addActionListener(e -> {
@@ -168,12 +177,26 @@ public class TaskPanel extends JPanel {
         });
     }
 
-    private static int nullSafeStringCompare(String a, String b) {
-        if (a == null && b == null) return 0;
-        if (a == null) return 1;
-        if (b == null) return -1;
-        return a.compareTo(b);
-    }
+    private void sortByLatestIdDesc() {
+    // id가 0(아직 DB 미삽입)인 경우를 가장 뒤로 보내도록 정렬
+    model.getAll().sort((t1, t2) -> {
+        int a = t1.getId();
+        int b = t2.getId();
+        // 0은 가장 오래된 것으로 간주
+        if (a == 0 && b == 0) return 0;
+        if (a == 0) return 1;
+        if (b == 0) return -1;
+        return Integer.compare(b, a); // 큰 id 먼저
+    });
+    model.fireTableDataChanged();
+}
+
+    // private static int nullSafeStringCompare(String a, String b) {
+    //     if (a == null && b == null) return 0;
+    //     if (a == null) return 1;
+    //     if (b == null) return -1;
+    //     return a.compareTo(b);
+    // }
 
     private int priorityTextToInt(String s) {
         if ("높음".equals(s)) return 1;
