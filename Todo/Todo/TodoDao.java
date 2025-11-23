@@ -74,35 +74,39 @@ public class TodoDao {
         }
     }
 
-
-    /** INSERT: 생성된 PK(id) 반환 */
+        /** INSERT 호출을 모두 업서트로 강제 연결 */
     public static int insert(Task t){
-        String sql =
-                "INSERT INTO todos (user_id, title, content, startDate, endDate, completed, priority) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
-
-        try (Connection con = DBUtill.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, t.getUserId());
-            ps.setString(2, t.getTitle());
-            ps.setString(3, t.getContent());
-            ps.setTimestamp(4, toTs(t.getStartDate()));
-            ps.setTimestamp(5, toTs(t.getEndDate()));
-            ps.setBoolean(6, t.isCompleted());
-            ps.setInt(7, t.getPriority());
-
-            ps.executeUpdate();
-
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) return rs.getInt(1);
-            }
-            return -1;
-
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return upsert(t);
     }
+
+    // /** INSERT: 생성된 PK(id) 반환 */
+    // public static int insert(Task t){
+    //     String sql =
+    //             "INSERT INTO todos (user_id, title, content, startDate, endDate, completed, priority) " +
+    //             "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+    //     try (Connection con = DBUtill.getConnection();
+    //          PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+    //         ps.setString(1, t.getUserId());
+    //         ps.setString(2, t.getTitle());
+    //         ps.setString(3, t.getContent());
+    //         ps.setTimestamp(4, toTs(t.getStartDate()));
+    //         ps.setTimestamp(5, toTs(t.getEndDate()));
+    //         ps.setBoolean(6, t.isCompleted());
+    //         ps.setInt(7, t.getPriority());
+
+    //         ps.executeUpdate();
+
+    //         try (ResultSet rs = ps.getGeneratedKeys()) {
+    //             if (rs.next()) return rs.getInt(1);
+    //         }
+    //         return -1;
+
+    //     } catch (SQLException e) {
+    //         throw new RuntimeException(e);
+    //     }
+    // }
 
     /** UPDATE */
     public static void update(Task t){
@@ -129,6 +133,48 @@ public class TodoDao {
         }
     }
 
+    public static int upsert(Task t){
+    String sql =
+        "INSERT INTO todos (user_id, title, content, startDate, endDate, completed, priority) " +
+        "VALUES (?, ?, ?, ?, ?, ?, ?) " +
+        "ON DUPLICATE KEY UPDATE " +
+        "  content=VALUES(content), " +
+        "  endDate=VALUES(endDate), " +
+        "  completed=VALUES(completed), " +
+        "  priority=VALUES(priority), " +
+        "  id=LAST_INSERT_ID(id)"; // 기존행이어도 getGeneratedKeys()로 id 받기
+
+    try (Connection con = DBUtill.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+        ps.setString(1, t.getUserId());
+        ps.setString(2, t.getTitle());
+        ps.setString(3, t.getContent());
+        ps.setTimestamp(4, toTs(t.getStartDate()));
+        ps.setTimestamp(5, toTs(t.getEndDate()));
+        ps.setBoolean(6, t.isCompleted());
+        ps.setInt(7, t.getPriority());
+
+        ps.executeUpdate();
+
+        try (ResultSet rs = ps.getGeneratedKeys()) {
+            if (rs.next()) {
+                int id = rs.getInt(1);
+                t.setId(id);
+                return id;
+            }
+        }
+        return (t.getId() > 0) ? t.getId() : -1;
+    } catch (SQLException e) {
+        // 어떤 SQL이 실제로 호출됐는지, 유니크키 이름, 값 확인용 로그
+        System.err.println("[UPSERT FAIL] user=" + t.getUserId()
+                + ", title=" + t.getTitle()
+                + ", start=" + t.getStartDate());
+        System.err.println("SQLState=" + e.getSQLState() + ", vendorCode=" + e.getErrorCode());
+        throw new RuntimeException(e);
+    }
+}
+
     /** DELETE */
     public static void delete(int id, String userId){
         String sql = "DELETE FROM todos WHERE id=? AND user_id=?";
@@ -142,6 +188,17 @@ public class TodoDao {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+    
+    public static boolean hasAnyTodo(String userId) {
+        String sql = "SELECT EXISTS(SELECT 1 FROM todos WHERE user_id=? LIMIT 1)";
+        try (var con = DBUtill.getConnection();
+            var ps  = con.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            try (var rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) == 1;
+            }
+        } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
     /** 날짜별 조회 (수정됨) */
@@ -194,4 +251,35 @@ public class TodoDao {
 
         return list;
     }
+
+    // public static int insertWithPriority(Task t) {
+    //     String sql = "INSERT INTO todos (user_id, title, content, startDate, endDate, completed, priority) "
+    //                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+    //     try (Connection conn = DBUtill.getConnection();
+    //          PreparedStatement ps = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+
+    //         ps.setString(1, t.getUserId());
+    //         ps.setString(2, t.getTitle());
+    //         ps.setString(3, t.getContent());
+    //         ps.setString(4, t.getStartDate()); // 문자열로 보관 중이면 그대로
+    //         ps.setString(5, t.getEndDate());
+    //         ps.setBoolean(6, t.isCompleted());
+
+    //         // Task에 priority 필드가 있으면 getPriority(), 없으면 필요 시 0/1/2/3을 직접 세팅
+    //         int pr = 0;
+    //         try { pr = t.getPriority(); } catch (Throwable ignore) { pr = 0; }
+    //         ps.setInt(7, pr);
+
+    //         ps.executeUpdate();
+
+    //         try (ResultSet rs = ps.getGeneratedKeys()) {
+    //             if (rs.next()) return rs.getInt(1);
+    //         }
+    //         return 0;
+    //     } catch (Exception e) {
+    //         throw new RuntimeException("Todo INSERT 실패", e);
+    //     }
+    // }
+
 }

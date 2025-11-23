@@ -14,6 +14,8 @@ public class ToDoListApp extends JFrame {
     private SignupPanel signupPanel;
     private MainPanel mainPanel;
 
+    private static boolean seedLoaded = false;
+
     public ToDoListApp() {
         setTitle("Todo 리스트 프로그램");
         setSize(1000, 700);
@@ -43,10 +45,15 @@ public class ToDoListApp extends JFrame {
 
     // LoginPanel에서 성공하면 호출
     public void initAfterLogin(String userId) {
+        if (!seedLoaded && !TodoDao.hasAnyTodo(userId) ) {            
+        TodoFile.readAllAndInsert("Todo/Todo/Todo_persona.txt");
+        seedLoaded = true;
+        }
         mainPanel.getTaskPanel().initAfterLogin(userId);
         mainPanel.setCurrentUserId(userId);
         mainPanel.getFriendListPanel().setUser(userId);
         showPanel("MAIN"); 
+       
     }
 
     public static void main(String[] args) {

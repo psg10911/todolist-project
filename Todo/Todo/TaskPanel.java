@@ -19,6 +19,7 @@ public class TaskPanel extends JPanel {
     private LocalDate currentDate;
     private String currentUserId;
 
+
     public TaskPanel() {
         setLayout(new BorderLayout(0, 10));
         setBackground(Theme.BACKGROUND);

@@ -59,7 +59,7 @@ public class FriendService {
         
         // 2. 이 ID 목록을 사용하여 TodoDao에서 실제 Task(할 일) 정보를 조회합니다.
         for (int todoId : sharedTodoIds) {
-            Task task = todoDAO.findById(todoId);
+            Task task = todoDAO.findById(todoId); //?
             if (task != null) {
                 sharedTasks.add(task);
             }

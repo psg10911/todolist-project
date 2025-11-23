@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Launch ToDoListApp",
+      "request": "launch",
+      "mainClass": "Todo.ToDoListApp",
+      "cwd": "${workspaceFolder}"   // ★ CWD를 워크스페이스 루트로 고정
+    }
+  ]
+}
