@@ -5,8 +5,10 @@ import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.awt.event.*;
 
+//회원가입 창 UI
+
 public class SignupPanel extends JPanel {
-    private ToDoListApp mainApp;
+    private ToDoListApp mainApp; 
 
     public SignupPanel(ToDoListApp mainApp) {
         this.mainApp = mainApp;

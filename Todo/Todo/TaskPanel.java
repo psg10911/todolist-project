@@ -4,6 +4,8 @@ import javax.swing.*;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.datatransfer.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -56,9 +58,25 @@ public class TaskPanel extends JPanel {
         table = new JTable(model);
         Theme.styleTable(table);
 
+        // 열 드래그 이동 가능 여부 (기본값 true)
+        table.getTableHeader().setReorderingAllowed(true);
+
         table.getColumnModel().getColumn(0).setPreferredWidth(50);
         table.getColumnModel().getColumn(1).setPreferredWidth(200);
         table.getColumnModel().getColumn(4).setPreferredWidth(70);
+
+        // ★ [추가됨] 테이블 더블 클릭 시 상세 내용(수정 창) 열기
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) { // 더블 클릭 확인
+                    int viewRow = table.getSelectedRow();
+                    if (viewRow != -1) {
+                        openEditDialog(viewRow);
+                    }
+                }
+            }
+        });
 
         sorter = new TableRowSorter<>(model);
         table.setRowSorter(sorter);
@@ -91,18 +109,10 @@ public class TaskPanel extends JPanel {
             String sel = (String) sortComboBox.getSelectedItem();
             sorter.setSortKeys(null);
 
-            // if ("최신순".equals(sel)) {
-            //     sorter.setComparator(2, (a, b) -> nullSafeStringCompare((String) b, (String) a));
-            //     sorter.toggleSortOrder(2);
-
-            // } else 
             if ("최신순".equals(sel)) {
                     sortByLatestIdDesc();
-                    return; // 아래 기본 sorter 로직은 건너뜀
+                    return; 
                 }
-
-                // ▼ 나머지(제목순/완료된순)는 기존 sorter 사용
-                sorter.setSortKeys(null); // 초기화
 
             if ("제목순".equals(sel)) {
                 sorter.toggleSortOrder(1);
@@ -143,21 +153,7 @@ public class TaskPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "수정할 할 일을 선택해주세요.");
                 return;
             }
-
-            int row = table.convertRowIndexToModel(viewRow);
-            Task original = model.getTaskAt(row);
-
-            TaskDialog dialog = new TaskDialog((JFrame) SwingUtilities.getWindowAncestor(this), original);
-            dialog.setLocationRelativeTo(this);
-            dialog.setVisible(true);
-
-            Task updated = dialog.getTask();
-            if (updated == null) return;
-
-            updated.setId(original.getId());
-            updated.setUserId(original.getUserId());
-            TodoDao.update(updated);
-            model.updateTask(row, updated);
+            openEditDialog(viewRow); // ★ 중복 로직 메서드로 분리 호출
         });
 
         delBtn.addActionListener(e -> {
@@ -178,26 +174,35 @@ public class TaskPanel extends JPanel {
         });
     }
 
-    private void sortByLatestIdDesc() {
-    // id가 0(아직 DB 미삽입)인 경우를 가장 뒤로 보내도록 정렬
-    model.getAll().sort((t1, t2) -> {
-        int a = t1.getId();
-        int b = t2.getId();
-        // 0은 가장 오래된 것으로 간주
-        if (a == 0 && b == 0) return 0;
-        if (a == 0) return 1;
-        if (b == 0) return -1;
-        return Integer.compare(b, a); // 큰 id 먼저
-    });
-    model.fireTableDataChanged();
-}
+    // ★ [추가됨] 수정 다이얼로그를 여는 공통 메서드
+    private void openEditDialog(int viewRow) {
+        int row = table.convertRowIndexToModel(viewRow);
+        Task original = model.getTaskAt(row);
 
-    // private static int nullSafeStringCompare(String a, String b) {
-    //     if (a == null && b == null) return 0;
-    //     if (a == null) return 1;
-    //     if (b == null) return -1;
-    //     return a.compareTo(b);
-    // }
+        TaskDialog dialog = new TaskDialog((JFrame) SwingUtilities.getWindowAncestor(this), original);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+
+        Task updated = dialog.getTask();
+        if (updated == null) return;
+
+        updated.setId(original.getId());
+        updated.setUserId(original.getUserId());
+        TodoDao.update(updated);
+        model.updateTask(row, updated);
+    }
+
+    private void sortByLatestIdDesc() {
+        model.getAll().sort((t1, t2) -> {
+            int a = t1.getId();
+            int b = t2.getId();
+            if (a == 0 && b == 0) return 0;
+            if (a == 0) return 1;
+            if (b == 0) return -1;
+            return Integer.compare(b, a); 
+        });
+        model.fireTableDataChanged();
+    }
 
     private int priorityTextToInt(String s) {
         if ("높음".equals(s)) return 1;
@@ -260,6 +265,22 @@ public class TaskPanel extends JPanel {
 
         JTable resultTable = new JTable(resultModel);
         Theme.styleTable(resultTable);
+        
+        // 검색 결과창에서도 더블 클릭 시 상세 보기 (선택 사항)
+        resultTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    int row = resultTable.getSelectedRow();
+                    if (row != -1) {
+                        // 여기서는 보여주기만 할지, 아니면 메인 테이블로 이동할지 결정해야 함.
+                        // 간단히 정보만 메시지로 띄우거나, 원본을 찾아 TaskDialog를 열 수도 있음.
+                        // 현재 구조상 원본 Task 객체 매핑이 필요하므로 생략하거나 
+                        // 검색 결과 모델에 Task 객체를 숨겨두는 방식이 필요함.
+                    }
+                }
+            }
+        });
 
         searchDialog.add(new JScrollPane(resultTable), BorderLayout.CENTER);
 
@@ -302,8 +323,6 @@ public class TaskPanel extends JPanel {
 
         searchDialog.setVisible(true);
     }
-
-    // ★ 내부 TaskTableModel은 완전히 삭제됨 (요청사항)
 
     static class TableRowReorderTransferHandler extends TransferHandler {
         private final JTable table;

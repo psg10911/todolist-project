@@ -7,73 +7,75 @@ import java.util.Enumeration;
 
 public class ToDoListApp extends JFrame {
 
-    private CardLayout cardLayout;
-    private JPanel cardPanel;
+    private CardLayout cardLayout;// 카드 레이아웃
+    private JPanel cardPanel;// 카드 패널
+    private LoginPanel loginPanel;// 로그인 패널
+    private SignupPanel signupPanel;// 회원가입 패널
+    private MainPanel mainPanel;// 메인 패널
 
-    private LoginPanel loginPanel;
-    private SignupPanel signupPanel;
-    private MainPanel mainPanel;
-
-    private static boolean seedLoaded = false;
+    private static boolean seedLoaded = false; // 시드 데이터 로드 여부
 
     public ToDoListApp() {
-        setTitle("Todo 리스트 프로그램");
-        setSize(1000, 700);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
+        setTitle("Todo 리스트 프로그램");// 창 제목
+        setSize(1000, 700);// 창 크기
+        // ★ 최소 크기 설정 (너비 800, 높이 600 이하로 축소 불가)
+        setMinimumSize(new Dimension(800, 600)); 
+        
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);// 창 닫기 버튼 클릭 시 종료
+        setLocationRelativeTo(null);// 화면 중앙에 창 띄우기
 
         // 카드 패널 설정
-        cardLayout = new CardLayout();
-        cardPanel = new JPanel(cardLayout);
+        cardLayout = new CardLayout();// 카드 레이아웃 생성
+        cardPanel = new JPanel(cardLayout);// 카드 패널 생성
         
         // 패널 생성
-        loginPanel = new LoginPanel(this); 
-        signupPanel = new SignupPanel(this);
-        mainPanel = new MainPanel();
+        loginPanel = new LoginPanel(this); // 로그인 패널
+        signupPanel = new SignupPanel(this); // 회원가입 패널
+        mainPanel = new MainPanel(); // 메인 패널
 
-        cardPanel.add(loginPanel, "LOGIN");
-        cardPanel.add(signupPanel, "SIGNUP");
-        cardPanel.add(mainPanel, "MAIN");
+        cardPanel.add(loginPanel, "LOGIN");// 카드 패널에 로그인 패널 추가
+        cardPanel.add(signupPanel, "SIGNUP");// 카드 패널에 회원가입 패널 추가
+        cardPanel.add(mainPanel, "MAIN");// 카드 패널에 메인 패널 추가
 
-        add(cardPanel);
-        cardLayout.show(cardPanel, "LOGIN");
+        add(cardPanel);// 프레임에 카드 패널 추가
+        cardLayout.show(cardPanel, "LOGIN");// 처음에는 로그인 패널 보이기
     }
 
     public void showPanel(String panelName) {
-        cardLayout.show(cardPanel, panelName);
+        cardLayout.show(cardPanel, panelName);// 지정한 패널 보이기
     }
 
     // LoginPanel에서 성공하면 호출
     public void initAfterLogin(String userId) {
         if (!seedLoaded && !TodoDao.hasAnyTodo(userId) ) {            
-        TodoFile.readAllAndInsert("Todo/Todo/Todo_persona.txt");
-        seedLoaded = true;
+        TodoFile.readAllAndInsert("Todo/Todo/Todo_persona.txt");// 시드 데이터 파일에서 읽어와 DB에 삽입
+        seedLoaded = true;// 시드 데이터 로드 완료 표시
         }
-        mainPanel.getTaskPanel().initAfterLogin(userId);
-        mainPanel.setCurrentUserId(userId);
-        mainPanel.getFriendListPanel().setUser(userId);
-        showPanel("MAIN"); 
+        mainPanel.getTaskPanel().initAfterLogin(userId);// 할 일 패널 초기화
+        mainPanel.setCurrentUserId(userId);// 현재 사용자 ID 설정
+        mainPanel.getFriendListPanel().setUser(userId);// 친구 목록 패널에 사용자 설정
+        showPanel("MAIN");// 메인 패널 보이기
        
     }
 
     public static void main(String[] args) {
         // [중요] 한글 깨짐 방지 및 전체 폰트 통일 (맑은 고딕)
-        setUIFont(new javax.swing.plaf.FontUIResource("맑은 고딕", Font.PLAIN, 13));
+        setUIFont(new javax.swing.plaf.FontUIResource("맑은 고딕", Font.PLAIN, 13));// 기본 폰트 설정
 
         SwingUtilities.invokeLater(() -> { 
-            ToDoListApp app = new ToDoListApp();
-            app.setVisible(true);
+            ToDoListApp app = new ToDoListApp();// 앱 생성
+            app.setVisible(true);// 앱 보이기
         });
     }
 
     // UI 매니저의 모든 기본 폰트를 변경하는 헬퍼 메서드
     private static void setUIFont(javax.swing.plaf.FontUIResource f) {
-        Enumeration<Object> keys = UIManager.getDefaults().keys();
+        Enumeration<Object> keys = UIManager.getDefaults().keys();// UI 매니저 기본 폰트 키 열거
         while (keys.hasMoreElements()) {
-            Object key = keys.nextElement();
-            Object value = UIManager.get(key);
+            Object key = keys.nextElement();// 다음 키 가져오기
+            Object value = UIManager.get(key);// 해당 키의 값 가져오기
             if (value instanceof javax.swing.plaf.FontUIResource)
-                UIManager.put(key, f);
+                UIManager.put(key, f);// 기본 폰트로 설정
         }
     }
 }

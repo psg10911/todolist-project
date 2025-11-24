@@ -18,39 +18,55 @@ public class MainPanel extends JPanel {
     private String currentUserId;
 
     public MainPanel() {
-        setLayout(new BorderLayout(15, 15)); // 패널 간 간격 넓힘
-        setBackground(Theme.BACKGROUND); // 배경색 지정
-        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15)); // 전체 여백
+        setLayout(new BorderLayout(15, 15)); 
+        setBackground(Theme.BACKGROUND); 
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15)); 
 
         taskPanel = new TaskPanel();
         calendarPanel = new CalendarPanel(taskPanel);
         friendListPanel = new FriendListPanel(new FriendService(), null);
 
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        bottomPanel.setBackground(Theme.BACKGROUND); 
+
+        // ★ 버튼 3개 생성
+        JButton todayScheduleBtn = new JButton("오늘의 일정"); 
+        JButton weeklyTimeTableBtn = new JButton("주간 시간표"); 
         JButton friendBtn = new JButton("친구 목록");
+        
+        Theme.styleButton(todayScheduleBtn);
+        Theme.styleButton(weeklyTimeTableBtn);
+        Theme.styleButton(friendBtn);
+
+        bottomPanel.add(todayScheduleBtn);
+        bottomPanel.add(weeklyTimeTableBtn);
         bottomPanel.add(friendBtn);
 
         add(calendarPanel, BorderLayout.CENTER);
         add(taskPanel, BorderLayout.EAST);
         add(bottomPanel, BorderLayout.SOUTH);
         
+        // 친구 목록
         friendBtn.addActionListener(e -> {
-            // 팝업 생성
-            JDialog dialog = new JDialog(
-                    (JFrame) SwingUtilities.getWindowAncestor(this),
-                    "친구 목록",
-                    true
-            );
-
+            JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "친구 목록", true);
             dialog.setSize(650, 500);
             dialog.setLocationRelativeTo(this);
-
-            // 현재 로그인한 사용자 정보 전달
-            if (currentUserId != null) {
-                friendListPanel.setUser(currentUserId);
-            }
-
+            if (currentUserId != null) friendListPanel.setUser(currentUserId);
             dialog.add(friendListPanel);
+            dialog.setVisible(true);
+        });
+
+        // 오늘의 일정 (원형 시계)
+        todayScheduleBtn.addActionListener(e -> {
+            if (currentUserId == null) return;
+            DailyScheduleDialog dialog = new DailyScheduleDialog(SwingUtilities.getWindowAncestor(this), currentUserId);
+            dialog.setVisible(true);
+        });
+
+        // 주간 시간표 (격자 테이블)
+        weeklyTimeTableBtn.addActionListener(e -> {
+            if (currentUserId == null) return;
+            WeeklyTimeTableDialog dialog = new WeeklyTimeTableDialog(SwingUtilities.getWindowAncestor(this), currentUserId);
             dialog.setVisible(true);
         });
     }

@@ -5,6 +5,8 @@ import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.awt.event.*;
 
+//로그인 화면 UI
+
 public class LoginPanel extends JPanel {
     private ToDoListApp mainApp;
 
