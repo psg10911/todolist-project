@@ -2,10 +2,11 @@ package Todo;
 
 import javax.swing.*;
 import javax.swing.border.Border;
-import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Arc2D;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,9 +16,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-
 
 public class DailyScheduleDialog extends JDialog {
 
@@ -39,7 +37,7 @@ public class DailyScheduleDialog extends JDialog {
         setSize(1000, 650);
         setLocationRelativeTo(parent);
         setLayout(new BorderLayout());
-        getContentPane().setBackground(Theme.CARD_BG); // 테마 배경색
+        getContentPane().setBackground(Theme.CARD_BG); 
 
         taskListModel = new DefaultListModel<>();
         freeTimeListModel = new DefaultListModel<>();
@@ -48,34 +46,27 @@ public class DailyScheduleDialog extends JDialog {
         updateFreeTimeList();
 
         // --- UI 구성 ---
-
-        // 1. 상단 제목
         JLabel titleLabel = new JLabel(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일의 하루")), SwingConstants.CENTER);
         titleLabel.setFont(Theme.FONT_BOLD_24);
         titleLabel.setForeground(Theme.TEXT_MAIN);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 20, 0));
         add(titleLabel, BorderLayout.NORTH);
 
-        // 2. 중앙 패널
-        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 20, 0)); // 간격 넓힘
+        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 20, 0)); 
         centerPanel.setBackground(Theme.CARD_BG);
         centerPanel.setBorder(new EmptyBorder(0, 20, 10, 20));
 
-        // [좌측] 시계 패널
         clockPanel = new ClockPanel();
         centerPanel.add(clockPanel);
 
-        // [우측] 정보 패널
         JSplitPane rightSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         rightSplitPane.setResizeWeight(0.5);
         rightSplitPane.setBorder(null);
-        rightSplitPane.setDividerSize(8); // 구분선 조금 더 두껍게
+        rightSplitPane.setDividerSize(8); 
         rightSplitPane.setBackground(Theme.BACKGROUND);
 
-        // 리스트 패널 스타일링 헬퍼
         Border outerBorder = BorderFactory.createLineBorder(Theme.BORDER);
         
-        // 2-1) 상단: 일정 목록
         JPanel taskListPanel = new JPanel(new BorderLayout());
         taskListPanel.setBackground(Theme.CARD_BG);
         
@@ -86,7 +77,7 @@ public class DailyScheduleDialog extends JDialog {
         
         JList<String> taskList = new JList<>(taskListModel);
         taskList.setFont(Theme.FONT_REGULAR_14);
-        taskList.setFixedCellHeight(35); // 높이 여유 있게
+        taskList.setFixedCellHeight(35); 
         taskList.setSelectionBackground(new Color(230, 240, 255));
         taskList.setSelectionForeground(Theme.TEXT_MAIN);
         
@@ -104,7 +95,7 @@ public class DailyScheduleDialog extends JDialog {
 
         taskList.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
+            public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
                     int index = taskList.locationToIndex(e.getPoint());
                     if (index >= 0 && index < todayTasks.size()) {
@@ -115,13 +106,12 @@ public class DailyScheduleDialog extends JDialog {
         });
         taskListPanel.add(new JScrollPane(taskList), BorderLayout.CENTER);
 
-        // 2-2) 하단: 빈 시간 목록
         JPanel freeListPanel = new JPanel(new BorderLayout());
         freeListPanel.setBackground(Theme.CARD_BG);
         
         TitledBorder freeTitle = BorderFactory.createTitledBorder(outerBorder, " 🌿 쉴 수 있는 빈 시간 ");
         freeTitle.setTitleFont(Theme.FONT_BOLD_16);
-        freeTitle.setTitleColor(new Color(39, 174, 96)); // 초록색
+        freeTitle.setTitleColor(new Color(39, 174, 96)); 
         freeListPanel.setBorder(freeTitle);
         
         JList<String> freeTimeList = new JList<>(freeTimeListModel);
@@ -151,13 +141,12 @@ public class DailyScheduleDialog extends JDialog {
         centerPanel.add(rightSplitPane);
         add(centerPanel, BorderLayout.CENTER);
 
-        // 3. 하단 버튼
         JPanel bottomPanel = new JPanel();
         bottomPanel.setBackground(Theme.CARD_BG);
         bottomPanel.setBorder(new EmptyBorder(10, 0, 10, 0));
         
         JButton closeBtn = new JButton("닫기");
-        Theme.styleButton(closeBtn); // 테마 버튼 스타일 적용
+        Theme.styleButton(closeBtn); 
         closeBtn.setPreferredSize(new Dimension(100, 40));
         closeBtn.addActionListener(e -> dispose());
         
@@ -290,7 +279,7 @@ public class DailyScheduleDialog extends JDialog {
         private class RenderArc {
             Task task;
             double startAngle, extentAngle;
-            int startMin, endMin, layerIndex = 0; 
+            int startMin, endMin;
             public RenderArc(Task t, int sMin, int eMin) {
                 this.task = t; this.startMin = sMin; this.endMin = eMin;
                 this.startAngle = 90 - ((double)sMin / 1440.0 * 360.0);
@@ -299,7 +288,6 @@ public class DailyScheduleDialog extends JDialog {
             }
         }
         private List<RenderArc> renderArcs = new ArrayList<>();
-        private int maxLayerDepth = 1;
 
         public ClockPanel() { setBackground(Theme.CARD_BG); calculateLayout(); }
 
@@ -318,17 +306,6 @@ public class DailyScheduleDialog extends JDialog {
                     renderArcs.add(new RenderArc(t, sMin, eMin));
                 } catch(Exception ex) {}
             }
-            List<Integer> layerEndTimes = new ArrayList<>();
-            for (RenderArc arc : renderArcs) {
-                boolean placed = false;
-                for (int i = 0; i < layerEndTimes.size(); i++) {
-                    if (layerEndTimes.get(i) <= arc.startMin) {
-                        arc.layerIndex = i; layerEndTimes.set(i, arc.endMin); placed = true; break;
-                    }
-                }
-                if (!placed) { arc.layerIndex = layerEndTimes.size(); layerEndTimes.add(arc.endMin); }
-            }
-            maxLayerDepth = layerEndTimes.size();
         }
 
         @Override
@@ -342,20 +319,28 @@ public class DailyScheduleDialog extends JDialog {
             int centerX = w / 2, centerY = h / 2;
             int maxRadius = outerDiameter / 2;
             
+            // 배경 (빈 시간)
             drawFreeTimeArcs(g2, centerX, centerY, maxRadius);
+            // 시계 눈금
             drawClockFace(g2, centerX, centerY, maxRadius);
 
-            int innerHoleRadius = maxRadius / 4; 
-            int availableRadius = maxRadius - innerHoleRadius;
-            int layerThickness = availableRadius / Math.max(1, maxLayerDepth);
-
+            // 일정 그리기 (꽉 채운 부채꼴)
             for (RenderArc arc : renderArcs) {
-                int currentOuterR = maxRadius - (arc.layerIndex * layerThickness);
                 Color color = getHashColor(arc.task.getTitle());
-                g2.setColor(color);
-                g2.setStroke(new BasicStroke(layerThickness - 2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL));
-                g2.draw(new Arc2D.Double(centerX - (currentOuterR - layerThickness/2.0), centerY - (currentOuterR - layerThickness/2.0), (currentOuterR - layerThickness/2.0) * 2, (currentOuterR - layerThickness/2.0) * 2, arc.startAngle, arc.extentAngle, Arc2D.OPEN));
-                drawText(g2, arc.task.getTitle(), arc.startAngle + arc.extentAngle/2, centerX, centerY, currentOuterR - layerThickness/2.0);
+                // 반투명 처리
+                Color transparentColor = new Color(color.getRed(), color.getGreen(), color.getBlue(), 180);
+                
+                g2.setColor(transparentColor);
+                // Arc2D.PIE를 사용하여 중심점부터 꽉 채운 부채꼴 그리기
+                g2.fill(new Arc2D.Double(
+                        centerX - maxRadius, 
+                        centerY - maxRadius, 
+                        maxRadius * 2, 
+                        maxRadius * 2, 
+                        arc.startAngle, arc.extentAngle, Arc2D.PIE));
+                
+                // 텍스트: 반지름의 70% 지점에 표시
+                drawText(g2, arc.task.getTitle(), arc.startAngle + arc.extentAngle/2, centerX, centerY, maxRadius * 0.7);
             }
             drawCurrentTimeHand(g2, centerX, centerY, maxRadius);
         }
@@ -401,7 +386,7 @@ public class DailyScheduleDialog extends JDialog {
             LocalTime now = LocalTime.now();
             double nowAngle = 90 - ((now.getHour() * 60 + now.getMinute()) / 1440.0 * 360.0);
             double rad = Math.toRadians(nowAngle);
-            g2.setColor(new Color(231, 76, 60)); // ACCENT Color
+            g2.setColor(new Color(231, 76, 60)); 
             g2.setStroke(new BasicStroke(2));
             g2.drawLine(cx, cy, (int)(cx + (radius - 10) * Math.cos(rad)), (int)(cy - (radius - 10) * Math.sin(rad)));
             g2.fillOval(cx - 4, cy - 4, 8, 8);

@@ -1,6 +1,7 @@
 package Todo;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.datatransfer.*;
@@ -11,6 +12,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import javax.swing.table.DefaultTableModel;
+// ★ List를 사용하기 위해 임포트
+import java.util.ArrayList;
 
 public class TaskPanel extends JPanel {
 
@@ -31,7 +34,8 @@ public class TaskPanel extends JPanel {
         topPanel.setBackground(Theme.BACKGROUND);
         topPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
 
-        selectedDateLabel = new JLabel(" ", SwingConstants.LEFT);
+        // ★ [수정됨] 상단 날짜 라벨 가운데 정렬
+        selectedDateLabel = new JLabel(" ", SwingConstants.CENTER);
         selectedDateLabel.setFont(Theme.FONT_BOLD_24);
         selectedDateLabel.setForeground(Theme.TEXT_MAIN);
         topPanel.add(selectedDateLabel, BorderLayout.CENTER);
@@ -58,18 +62,25 @@ public class TaskPanel extends JPanel {
         table = new JTable(model);
         Theme.styleTable(table);
 
-        // 열 드래그 이동 가능 여부 (기본값 true)
+        // ★ [추가됨] 테이블 셀 내용 가운데 정렬 설정
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+
+        // 0번(체크박스)을 제외한 나머지 컬럼(1~4)에 가운데 정렬 적용
+        for (int i = 1; i < table.getColumnCount(); i++) {
+            table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        }
+
         table.getTableHeader().setReorderingAllowed(true);
 
         table.getColumnModel().getColumn(0).setPreferredWidth(50);
         table.getColumnModel().getColumn(1).setPreferredWidth(200);
         table.getColumnModel().getColumn(4).setPreferredWidth(70);
 
-        // ★ [추가됨] 테이블 더블 클릭 시 상세 내용(수정 창) 열기
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) { // 더블 클릭 확인
+                if (e.getClickCount() == 2) { 
                     int viewRow = table.getSelectedRow();
                     if (viewRow != -1) {
                         openEditDialog(viewRow);
@@ -135,16 +146,25 @@ public class TaskPanel extends JPanel {
 
         addBtn.addActionListener(e -> {
             if (!ensureUserBound()) return;
-            TaskDialog dialog = new TaskDialog((JFrame) SwingUtilities.getWindowAncestor(this), currentDate);
+            
+            TaskDialog dialog = new TaskDialog(
+                (JFrame) SwingUtilities.getWindowAncestor(this), 
+                currentDate, 
+                currentUserId
+            );
             dialog.setVisible(true);
 
             Task t = dialog.getTask();
             if (t == null) return;
 
             t.setUserId(currentUserId);
-            int newId = TodoDao.insert(t);
-            t.setId(newId);
-            model.addTask(t);
+            
+            // INSERT도 백그라운드 처리 권장 (간단히 스레드로 처리)
+            new Thread(() -> {
+                int newId = TodoDao.insert(t);
+                t.setId(newId);
+                SwingUtilities.invokeLater(() -> model.addTask(t));
+            }).start();
         });
 
         editBtn.addActionListener(e -> {
@@ -153,7 +173,7 @@ public class TaskPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "수정할 할 일을 선택해주세요.");
                 return;
             }
-            openEditDialog(viewRow); // ★ 중복 로직 메서드로 분리 호출
+            openEditDialog(viewRow); 
         });
 
         delBtn.addActionListener(e -> {
@@ -169,12 +189,15 @@ public class TaskPanel extends JPanel {
 
             int row = table.convertRowIndexToModel(viewRow);
             Task t = model.getTaskAt(row);
-            TodoDao.delete(t.getId(), t.getUserId());
-            model.removeAt(row);
+            
+            // DELETE 백그라운드 처리
+            new Thread(() -> {
+                TodoDao.delete(t.getId(), t.getUserId());
+                SwingUtilities.invokeLater(() -> model.removeAt(row));
+            }).start();
         });
     }
 
-    // ★ [추가됨] 수정 다이얼로그를 여는 공통 메서드
     private void openEditDialog(int viewRow) {
         int row = table.convertRowIndexToModel(viewRow);
         Task original = model.getTaskAt(row);
@@ -186,10 +209,13 @@ public class TaskPanel extends JPanel {
         Task updated = dialog.getTask();
         if (updated == null) return;
 
-        updated.setId(original.getId());
-        updated.setUserId(original.getUserId());
-        TodoDao.update(updated);
-        model.updateTask(row, updated);
+        // UPDATE 백그라운드 처리
+        new Thread(() -> {
+            updated.setId(original.getId());
+            updated.setUserId(original.getUserId());
+            TodoDao.update(updated);
+            SwingUtilities.invokeLater(() -> model.updateTask(row, updated));
+        }).start();
     }
 
     private void sortByLatestIdDesc() {
@@ -213,20 +239,57 @@ public class TaskPanel extends JPanel {
 
     public void setCurrentUserId(String userId) { this.currentUserId = userId; }
 
+    // 로그아웃 시 TaskPanel 초기화
+    public void clear() {
+        currentUserId = null;
+        currentDate = null;
+        selectedDateLabel.setText(" ");
+        model.getAll().clear();
+        model.fireTableDataChanged();
+    }
+
     public void initAfterLogin(String userId) {
         setCurrentUserId(userId);
         loadTasksForDate(LocalDate.now());
     }
 
+    // ★ [핵심 수정] DB 조회를 백그라운드 스레드(SwingWorker)에서 실행
     public void loadTasksForDate(LocalDate date) {
         this.currentDate = date;
         selectedDateLabel.setText(date.format(DateTimeFormatter.ofPattern("MM월 dd일 (E)")));
-        model.getAll().clear();
+        
+        // 로딩 중 표시 (선택 사항: 커서 변경 등)
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
-        if (currentUserId != null && !currentUserId.isBlank()) {
-            model.getAll().addAll(TodoDao.findByDate(currentUserId, date));
-        }
-        model.fireTableDataChanged();
+        // SwingWorker: <결과 타입, 중간 처리 타입>
+        SwingWorker<List<Task>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected List<Task> doInBackground() throws Exception {
+                // 백그라운드 스레드에서 DB 조회 수행
+                if (currentUserId != null && !currentUserId.isBlank()) {
+                    return TodoDao.findByDate(currentUserId, date);
+                }
+                return new ArrayList<>();
+            }
+
+            @Override
+            protected void done() {
+                // 작업 완료 후 UI 갱신 (EDT에서 실행됨)
+                try {
+                    List<Task> tasks = get(); // doInBackground의 리턴값 받기
+                    model.getAll().clear();
+                    model.getAll().addAll(tasks);
+                    model.fireTableDataChanged();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(TaskPanel.this, "데이터 로드 중 오류 발생");
+                } finally {
+                    setCursor(Cursor.getDefaultCursor()); // 커서 복구
+                }
+            }
+        };
+        
+        worker.execute(); // 작업 시작
     }
 
     private boolean ensureUserBound() {
@@ -266,17 +329,20 @@ public class TaskPanel extends JPanel {
         JTable resultTable = new JTable(resultModel);
         Theme.styleTable(resultTable);
         
-        // 검색 결과창에서도 더블 클릭 시 상세 보기 (선택 사항)
+        // 검색 결과창 가운데 정렬 추가
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        for(int i=1; i<resultTable.getColumnCount(); i++) {
+            resultTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        }
+
         resultTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
                     int row = resultTable.getSelectedRow();
                     if (row != -1) {
-                        // 여기서는 보여주기만 할지, 아니면 메인 테이블로 이동할지 결정해야 함.
-                        // 간단히 정보만 메시지로 띄우거나, 원본을 찾아 TaskDialog를 열 수도 있음.
-                        // 현재 구조상 원본 Task 객체 매핑이 필요하므로 생략하거나 
-                        // 검색 결과 모델에 Task 객체를 숨겨두는 방식이 필요함.
+                        JOptionPane.showMessageDialog(searchDialog, "검색된 일정의 상세 내용은 메인 화면에서 수정해주세요.");
                     }
                 }
             }
@@ -300,25 +366,31 @@ public class TaskPanel extends JPanel {
                 return;
             }
 
-            resultModel.setRowCount(0);
+            // 검색도 백그라운드 처리 (선택 사항)
+            new Thread(() -> {
+                // 여기서는 현재 메모리에 있는 model.getAll()을 뒤지는 것이므로 빠르지만,
+                // 만약 DB 전체 검색이라면 SwingWorker를 써야 함.
+                // 현재 코드는 메모리 검색이므로 그대로 둠.
+                SwingUtilities.invokeLater(() -> {
+                    resultModel.setRowCount(0);
+                    for (Task t : model.getAll()) {
+                        if ((t.getTitle() != null && t.getTitle().contains(keyword)) ||
+                            (t.getStartDate() != null && t.getStartDate().contains(keyword)) ||
+                            (t.getEndDate() != null && t.getEndDate().contains(keyword))) {
 
-            for (Task t : model.getAll()) {
-                if ((t.getTitle() != null && t.getTitle().contains(keyword)) ||
-                    (t.getStartDate() != null && t.getStartDate().contains(keyword)) ||
-                    (t.getEndDate() != null && t.getEndDate().contains(keyword))) {
+                            String priorityText = (t.getPriority() == 1 ? "높음" :
+                                                   t.getPriority() == 2 ? "보통" : "낮음");
 
-                    String priorityText = (t.getPriority() == 1 ? "높음" :
-                                           t.getPriority() == 2 ? "보통" : "낮음");
-
-                    resultModel.addRow(new Object[]{
-                            t.isCompleted(), t.getTitle(), t.getStartDate(), t.getEndDate(), priorityText
-                    });
-                }
-            }
-
-            if (resultModel.getRowCount() == 0) {
-                JOptionPane.showMessageDialog(searchDialog, "검색 결과가 없습니다.");
-            }
+                            resultModel.addRow(new Object[]{
+                                    t.isCompleted(), t.getTitle(), t.getStartDate(), t.getEndDate(), priorityText
+                            });
+                        }
+                    }
+                    if (resultModel.getRowCount() == 0) {
+                        JOptionPane.showMessageDialog(searchDialog, "검색 결과가 없습니다.");
+                    }
+                });
+            }).start();
         });
 
         searchDialog.setVisible(true);

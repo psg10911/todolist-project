@@ -7,6 +7,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
@@ -42,6 +43,25 @@ public class MainPanel extends JPanel {
         bottomPanel.add(weeklyTimeTableBtn);
         bottomPanel.add(friendBtn);
 
+
+        JButton logoutBtn = new JButton("로그아웃");
+        Theme.styleButton(logoutBtn);
+        bottomPanel.add(logoutBtn);
+
+        logoutBtn.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(
+                this, 
+                "정말 로그아웃하시겠습니까?", 
+                "로그아웃 확인", 
+                JOptionPane.YES_NO_OPTION
+            );
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                ToDoListApp app = (ToDoListApp) SwingUtilities.getWindowAncestor(this);
+                app.logout();
+            }
+        });
+
         add(calendarPanel, BorderLayout.CENTER);
         add(taskPanel, BorderLayout.EAST);
         add(bottomPanel, BorderLayout.SOUTH);
@@ -73,7 +93,22 @@ public class MainPanel extends JPanel {
     
     public void setCurrentUserId(String userId) {
         this.currentUserId = userId;
+        if (calendarPanel != null) {
+            calendarPanel.setCurrentUserId(userId);
+        }
     }
+
+    public void clear() {
+        // 현재 사용자 ID 초기화
+        currentUserId = null;
+        
+        // 각 패널 초기화
+        taskPanel.clear();
+        calendarPanel.clear();
+        friendListPanel.clear();
+    }
+
+    
 
     public TaskPanel getTaskPanel() {
         return taskPanel;

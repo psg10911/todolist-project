@@ -49,6 +49,7 @@ public class ToDoListApp extends JFrame {
     public void initAfterLogin(String userId) {
         if (!seedLoaded && !TodoDao.hasAnyTodo(userId) ) {            
         TodoFile.readAllAndInsert("Todo/Todo/Todo_persona.txt");// 시드 데이터 파일에서 읽어와 DB에 삽입
+        //TodoFile.readAllAndInsert("C:\\Users\\pko\\Desktop\\WorkingFolder\\todolist-project\\Todo\\Todo\\Todo_persona.txt");
         seedLoaded = true;// 시드 데이터 로드 완료 표시
         }
         mainPanel.getTaskPanel().initAfterLogin(userId);// 할 일 패널 초기화
@@ -56,6 +57,18 @@ public class ToDoListApp extends JFrame {
         mainPanel.getFriendListPanel().setUser(userId);// 친구 목록 패널에 사용자 설정
         showPanel("MAIN");// 메인 패널 보이기
        
+    }
+
+    // 로그아웃 메서드
+    public void logout() {
+        // MainPanel 초기화
+        mainPanel.clear();
+        
+        // LoginPanel 초기화
+        loginPanel.clearFields();
+        
+        // 로그인 패널 표시
+        cardLayout.show(cardPanel, "LOGIN");
     }
 
     public static void main(String[] args) {

@@ -1,6 +1,6 @@
 package Todo;
 
-import com.toedter.calendar.JDateChooser; // ★ JCalendar 라이브러리 import
+import com.toedter.calendar.JDateChooser; 
 import com.toedter.calendar.JTextFieldDateEditor;
 
 import javax.swing.*;
@@ -12,38 +12,81 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.List;
 
 public class TaskDialog extends JDialog {
 
     private JTextField titleField;
     private JTextArea contentArea;
     
-    // 커스텀 날짜+시간 선택기
+    private JPanel datePanel;
     private DateTimeSelector startSelector;
     private DateTimeSelector endSelector;
     
+    private JCheckBox multiDayCheck; 
     private JCheckBox completedCheck;
-
-    private JRadioButton priLowBtn;     
-    private JRadioButton priMidBtn;     
-    private JRadioButton priHighBtn;    
+    private JRadioButton priLowBtn, priMidBtn, priHighBtn;    
 
     private boolean editMode;
     private Task workingCopy;
     private Task resultTask = null;
+    private String currentUserId; 
+    private LocalDate baseDate; 
 
-    // DB 저장용 포맷
     private static final DateTimeFormatter FULL_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    private void buildUI(LocalDate defaultDate, String dialogTitle) {
+    public TaskDialog(Frame owner, LocalDate selectedDate, String userId) {
+        super(owner, true);
+        this.editMode = false;
+        this.currentUserId = userId;
+        this.baseDate = selectedDate != null ? selectedDate : LocalDate.now();
+        buildUI("새 할 일 추가");
+    }
+
+    public TaskDialog(Frame owner, Task taskToEdit) {
+        super(owner, true);
+        this.editMode = true;
+        this.workingCopy = new Task(taskToEdit);
+        this.currentUserId = taskToEdit.getUserId();
+        
+        try {
+            String s = taskToEdit.getStartDate();
+            if (s.length() > 10) s = s.substring(0, 10);
+            this.baseDate = LocalDate.parse(s);
+        } catch (Exception e) {
+            this.baseDate = LocalDate.now();
+        }
+
+        buildUI("할 일 수정");
+        
+        titleField.setText(workingCopy.getTitle());
+        contentArea.setText(workingCopy.getContent());
+        completedCheck.setSelected(workingCopy.isCompleted());
+        
+        LocalDateTime start = parseDateTime(workingCopy.getStartDate());
+        LocalDateTime end = parseDateTime(workingCopy.getEndDate());
+        
+        boolean isMultiDay = !start.toLocalDate().equals(end.toLocalDate());
+        multiDayCheck.setSelected(isMultiDay);
+        toggleDateMode(isMultiDay);
+
+        startSelector.setDateTime(start);
+        endSelector.setDateTime(end);
+
+        int pri = workingCopy.getPriority();
+        if (pri == 1) priLowBtn.setSelected(true);
+        else if (pri == 3) priHighBtn.setSelected(true);
+        else priMidBtn.setSelected(true);
+    }
+
+    private void buildUI(String dialogTitle) {
         setTitle(dialogTitle);
         setModal(true);
-        setSize(500, 550); 
+        setSize(500, 600); 
         setLayout(new BorderLayout(10, 10));
         setLocationRelativeTo(getOwner());
         getContentPane().setBackground(Color.WHITE);
 
-        // 상단 폼
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
         formPanel.setBorder(new EmptyBorder(20, 20, 10, 20));
@@ -55,69 +98,64 @@ public class TaskDialog extends JDialog {
         // 1. 제목
         gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.15;
         formPanel.add(new JLabel("일정 제목"), gbc);
-        
         gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 0.85;
         titleField = new JTextField();
         Theme.styleTextField(titleField);
         formPanel.add(titleField, gbc);
 
-        // 기본 시간 계산
-        LocalDateTime baseTime = (defaultDate != null) 
-                ? defaultDate.atTime(9, 0) 
-                : LocalDateTime.now();
-        
-        // 2. 시작일 (JDateChooser + Spinner)
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.15;
-        formPanel.add(new JLabel("시작일"), gbc);
+        // 2. 기간 설정 체크박스
+        gbc.gridx = 1; gbc.gridy = 1;
+        multiDayCheck = new JCheckBox("하루 이상 (기간 설정)");
+        multiDayCheck.setBackground(Color.WHITE);
+        multiDayCheck.setFont(Theme.FONT_REGULAR_12);
+        multiDayCheck.addActionListener(e -> toggleDateMode(multiDayCheck.isSelected()));
+        formPanel.add(multiDayCheck, gbc);
 
-        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 0.85;
-        startSelector = new DateTimeSelector(baseTime);
+        // 3. 시작/종료 선택기
+        LocalDateTime baseStart = baseDate.atTime(9, 0);
+        LocalDateTime baseEnd = baseDate.atTime(10, 0);
+
+        startSelector = new DateTimeSelector(baseStart);
+        endSelector = new DateTimeSelector(baseEnd);
+
+        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.15;
+        formPanel.add(new JLabel("시작"), gbc); // ★ "시작"으로 통일
+        gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 0.85;
         formPanel.add(startSelector, gbc);
 
-        // 3. 종료일 (JDateChooser + Spinner)
-        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.15;
-        formPanel.add(new JLabel("종료일"), gbc);
-
-        gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 0.85;
-        endSelector = new DateTimeSelector(baseTime.plusHours(1));
+        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.15;
+        formPanel.add(new JLabel("종료"), gbc); // ★ "종료"로 통일
+        gbc.gridx = 1; gbc.gridy = 3; gbc.weightx = 0.85;
         formPanel.add(endSelector, gbc);
 
-        // 4. 중요도
-        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.15;
-        formPanel.add(new JLabel("중요도"), gbc);
+        toggleDateMode(false); // 초기 모드 설정
 
-        gbc.gridx = 1; gbc.gridy = 3; gbc.weightx = 0.85;
+        // 4. 중요도
+        gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0.15;
+        formPanel.add(new JLabel("중요도"), gbc);
+        gbc.gridx = 1; gbc.gridy = 4; gbc.weightx = 0.85;
         
         JPanel priPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         priPanel.setBackground(Color.WHITE);
-        
         priLowBtn = new JRadioButton("높음");
         priMidBtn = new JRadioButton("보통");
         priHighBtn = new JRadioButton("낮음");
-        
         priLowBtn.setBackground(Color.WHITE);
         priMidBtn.setBackground(Color.WHITE);
         priHighBtn.setBackground(Color.WHITE);
 
         ButtonGroup group = new ButtonGroup();
-        group.add(priLowBtn);
-        group.add(priMidBtn);
-        group.add(priHighBtn);
+        group.add(priLowBtn); group.add(priMidBtn); group.add(priHighBtn);
+        priMidBtn.setSelected(true);
 
-        priMidBtn.setSelected(true); // 기본
-
-        priPanel.add(priLowBtn);
-        priPanel.add(priMidBtn);
-        priPanel.add(priHighBtn);
+        priPanel.add(priLowBtn); priPanel.add(priMidBtn); priPanel.add(priHighBtn);
         formPanel.add(priPanel, gbc);
-
         add(formPanel, BorderLayout.NORTH);
 
         // 중앙: 내용
         JPanel contentPanel = new JPanel(new BorderLayout(0, 10));
         contentPanel.setBackground(Color.WHITE);
         contentPanel.setBorder(new EmptyBorder(0, 20, 0, 20));
-        
         contentPanel.add(new JLabel("일정 내용"), BorderLayout.NORTH);
 
         contentArea = new JTextArea(8, 20);
@@ -125,7 +163,6 @@ public class TaskDialog extends JDialog {
         contentArea.setWrapStyleWord(true);
         contentArea.setFont(Theme.FONT_REGULAR_14);
         contentArea.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        
         JScrollPane scroll = new JScrollPane(contentArea);
         scroll.setBorder(BorderFactory.createLineBorder(Theme.BORDER));
         contentPanel.add(scroll, BorderLayout.CENTER);
@@ -134,16 +171,13 @@ public class TaskDialog extends JDialog {
         completedCheck.setBackground(Color.WHITE);
         completedCheck.setSelected(false);
         contentPanel.add(completedCheck, BorderLayout.SOUTH);
-
         add(contentPanel, BorderLayout.CENTER);
 
         // 하단 버튼
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
         buttonPanel.setBackground(Color.WHITE);
-        
         JButton saveButton = new JButton("저장");
         JButton cancelButton = new JButton("취소");
-        
         Theme.styleButton(saveButton);
         Theme.styleButton(cancelButton);
         cancelButton.setBackground(Theme.TEXT_SUB);
@@ -152,47 +186,63 @@ public class TaskDialog extends JDialog {
         buttonPanel.add(cancelButton);
         add(buttonPanel, BorderLayout.SOUTH);
 
-        // 리스너
+        // === 저장 로직 ===
         saveButton.addActionListener(e -> {
             String title = titleField.getText().trim();
-            String content = contentArea.getText().trim();
-            boolean completed = completedCheck.isSelected();
-            
-            // Selector에서 완성된 문자열 가져오기
-            String start = startSelector.getDateTimeString();
-            String end = endSelector.getDateTimeString();
-
             if (title.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "제목을 입력해주세요.", "알림", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, "제목을 입력해주세요.");
                 return;
             }
+
+            LocalDateTime startDT, endDT;
+            boolean isMulti = multiDayCheck.isSelected();
+
+            if (isMulti) {
+                LocalDate d1 = startSelector.getSelectedDate();
+                LocalDate d2 = endSelector.getSelectedDate();
+                if (d1 == null || d2 == null) {
+                     JOptionPane.showMessageDialog(this, "날짜를 선택해주세요.");
+                     return;
+                }
+                startDT = d1.atStartOfDay();
+                endDT = d2.atTime(23, 59, 59); 
+            } else {
+                LocalTime t1 = startSelector.getSelectedTime();
+                LocalTime t2 = endSelector.getSelectedTime();
+                startDT = baseDate.atTime(t1);
+                endDT = baseDate.atTime(t2);
+            }
+
+            if (startDT.isAfter(endDT)) {
+                JOptionPane.showMessageDialog(this, "종료 시간이 시작 시간보다 빠를 수 없습니다.");
+                return;
+            }
+
+            // 중복 검사
+            int currentId = (editMode && workingCopy != null) ? workingCopy.getId() : 0;
             
-            if (start == null || end == null) {
-                JOptionPane.showMessageDialog(this, "날짜를 올바르게 선택해주세요.", "오류", JOptionPane.ERROR_MESSAGE);
+            // 겹침 검사
+            if (isTimeOverlapping(currentUserId, startDT, endDT, currentId)) {
+                JOptionPane.showMessageDialog(this, "해당 시간에 이미 일정이 있습니다. (기간 일정은 겹칠 수 있습니다.)");
                 return;
             }
 
-            // 날짜 선후 관계 체크
-            if (start.compareTo(end) > 0) {
-                 JOptionPane.showMessageDialog(this, "종료일이 시작일보다 빠를 수 없습니다.", "경고", JOptionPane.WARNING_MESSAGE);
-                 return;
-            }
-
-            int priority = 2;
-            if (priLowBtn.isSelected()) priority = 1;
-            if (priMidBtn.isSelected()) priority = 2;
-            if (priHighBtn.isSelected()) priority = 3;
+            String startStr = startDT.format(FULL_FMT);
+            String endStr = endDT.format(FULL_FMT);
+            int priority = priLowBtn.isSelected() ? 1 : (priHighBtn.isSelected() ? 3 : 2);
+            boolean completed = completedCheck.isSelected();
+            String content = contentArea.getText().trim();
 
             if (editMode) {
                 workingCopy.setTitle(title);
                 workingCopy.setContent(content);
-                workingCopy.setStartDate(start);
-                workingCopy.setEndDate(end);
+                workingCopy.setStartDate(startStr);
+                workingCopy.setEndDate(endStr);
                 workingCopy.setCompleted(completed);
                 workingCopy.setPriority(priority); 
                 resultTask = workingCopy;
             } else {
-                Task newTask = new Task(title, content, start, end);
+                Task newTask = new Task(title, content, startStr, endStr);
                 newTask.setCompleted(completed);
                 newTask.setPriority(priority); 
                 resultTask = newTask;
@@ -206,118 +256,105 @@ public class TaskDialog extends JDialog {
         });
     }
 
-    public TaskDialog(Frame owner, LocalDate selectedDate) {
-        super(owner, true);
-        this.editMode = false;
-        buildUI(selectedDate, "새 할 일 추가");
+    private void toggleDateMode(boolean isMultiDay) {
+        startSelector.setMode(isMultiDay);
+        endSelector.setMode(isMultiDay);
     }
 
-    public TaskDialog(Frame owner, Task taskToEdit) {
-        super(owner, true);
-        this.editMode = true;
-        this.workingCopy = new Task(taskToEdit);
+    private boolean isTimeOverlapping(String userId, LocalDateTime newStart, LocalDateTime newEnd, int excludeId) {
+        boolean isNewMultiDay = !newStart.toLocalDate().equals(newEnd.toLocalDate());
+        if (isNewMultiDay) {
+            return false; 
+        }
 
-        buildUI(null, "할 일 수정");
+        List<Task> tasks = TodoDao.findByRange(userId, newStart.minusDays(1), newEnd.plusDays(1));
         
-        titleField.setText(workingCopy.getTitle());
-        contentArea.setText(workingCopy.getContent());
-        completedCheck.setSelected(workingCopy.isCompleted());
-        
-        // Selector에 값 채워넣기
-        startSelector.setDateTimeString(workingCopy.getStartDate());
-        endSelector.setDateTimeString(workingCopy.getEndDate());
+        for (Task t : tasks) {
+            if (t.getId() == excludeId) continue;
+            
+            try {
+                LocalDateTime tStart = parseDateTime(t.getStartDate());
+                LocalDateTime tEnd = parseDateTime(t.getEndDate());
+                
+                boolean isExistingMultiDay = !tStart.toLocalDate().equals(tEnd.toLocalDate());
+                if (isExistingMultiDay) {
+                    continue;
+                }
 
-        int pri = workingCopy.getPriority();
-        if (pri == 1) priLowBtn.setSelected(true);
-        else if (pri == 3) priHighBtn.setSelected(true);
-        else priMidBtn.setSelected(true);
+                if (newStart.isBefore(tEnd) && newEnd.isAfter(tStart)) {
+                    return true; 
+                }
+            } catch (Exception ex) {}
+        }
+        return false;
     }
 
-    public Task getTask() {
-        return resultTask;
+    private LocalDateTime parseDateTime(String str) {
+        if (str.length() > 16) str = str.substring(0, 16);
+        return LocalDateTime.parse(str, FULL_FMT);
     }
 
-    // =================================================================================
-    // ★ JCalendar(JDateChooser) + JSpinner(Time) 조합 컴포넌트
-    // =================================================================================
+    public Task getTask() { return resultTask; }
+
     private class DateTimeSelector extends JPanel {
-        
-        // 라이브러리 컴포넌트 사용
         private JDateChooser dateChooser; 
         private JSpinner timeSpinner;
 
         public DateTimeSelector(LocalDateTime initDateTime) {
-            setLayout(new FlowLayout(FlowLayout.LEFT, 5, 0));
+            setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
             setBackground(Color.WHITE);
 
-            // 1. 날짜 선택기 (JDateChooser)
             dateChooser = new JDateChooser();
-            dateChooser.setDateFormatString("yyyy-MM-dd"); // 표시 형식
+            dateChooser.setDateFormatString("yyyy-MM-dd");
             dateChooser.setPreferredSize(new Dimension(130, 30));
             
-            // 초기값 설정 (LocalDateTime -> Date 변환)
-            Date initDateVal = Date.from(initDateTime.atZone(ZoneId.systemDefault()).toInstant());
-            dateChooser.setDate(initDateVal);
-            
-            // ★ 핵심: 날짜 텍스트 필드 수정 불가능하게 설정 (오타 방지) [cite: 10, 14]
             JTextFieldDateEditor dateEditor = (JTextFieldDateEditor) dateChooser.getDateEditor();
             dateEditor.setEditable(false); 
-            // 테마 적용 (선택 사항)
             dateEditor.setBackground(new Color(245, 246, 250));
             dateEditor.setFont(Theme.FONT_REGULAR_14);
 
-            // 2. 시간 선택기 (Spinner)
             SpinnerDateModel timeModel = new SpinnerDateModel();
-            timeModel.setValue(initDateVal);
-            
             timeSpinner = new JSpinner(timeModel);
             JSpinner.DateEditor timeEditor = new JSpinner.DateEditor(timeSpinner, "HH:mm");
             timeSpinner.setEditor(timeEditor);
-            timeSpinner.setPreferredSize(new Dimension(70, 30));
+            timeSpinner.setPreferredSize(new Dimension(80, 30));
             timeSpinner.setBorder(BorderFactory.createLineBorder(Theme.BORDER));
-
-            // ★ 핵심: 시간 텍스트 필드 수정 불가능하게 설정
+            
             JFormattedTextField timeTextField = ((JSpinner.DefaultEditor) timeSpinner.getEditor()).getTextField();
             timeTextField.setEditable(false);
             timeTextField.setFont(Theme.FONT_REGULAR_14);
             timeTextField.setHorizontalAlignment(SwingConstants.CENTER);
             timeTextField.setBackground(new Color(245, 246, 250));
 
+            setDateTime(initDateTime);
+
             add(dateChooser);
-            add(new JLabel("  ")); // 간격
+            add(Box.createHorizontalStrut(5));
             add(timeSpinner);
         }
 
-        // 선택된 날짜+시간을 합쳐서 "yyyy-MM-dd HH:mm" 문자열로 반환
-        public String getDateTimeString() {
-            Date d = dateChooser.getDate();
-            if (d == null) return null;
-
-            // Date -> LocalDate
-            LocalDate ld = d.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-
-            // Spinner -> LocalTime
-            Date t = (Date) timeSpinner.getValue();
-            LocalTime lt = LocalDateTime.ofInstant(t.toInstant(), ZoneId.systemDefault()).toLocalTime();
-
-            return LocalDateTime.of(ld, lt).format(FULL_FMT);
+        public void setMode(boolean isMultiDay) {
+            dateChooser.setVisible(isMultiDay);
+            timeSpinner.setVisible(!isMultiDay);
+            revalidate();
+            repaint();
         }
 
-        // DB에서 불러온 문자열을 UI에 세팅
-        public void setDateTimeString(String str) {
-            if (str == null || str.isEmpty()) return;
-            try {
-                if (str.length() > 16) str = str.substring(0, 16);
-                LocalDateTime ldt = LocalDateTime.parse(str, FULL_FMT);
-                
-                Date dateVal = Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
-                
-                dateChooser.setDate(dateVal);
-                timeSpinner.setValue(dateVal);
-                
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        public void setDateTime(LocalDateTime ldt) {
+            Date dateVal = Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
+            dateChooser.setDate(dateVal);
+            timeSpinner.setValue(dateVal);
+        }
+
+        public LocalDate getSelectedDate() {
+            Date d = dateChooser.getDate();
+            if (d == null) return null;
+            return d.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        }
+
+        public LocalTime getSelectedTime() {
+            Date t = (Date) timeSpinner.getValue();
+            return LocalDateTime.ofInstant(t.toInstant(), ZoneId.systemDefault()).toLocalTime();
         }
     }
 }

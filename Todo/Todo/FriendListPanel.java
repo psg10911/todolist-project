@@ -27,6 +27,7 @@ public class FriendListPanel extends JPanel {
         // ============ 왼쪽: 친구 목록 =============
         listModel = new DefaultListModel<>();
         friendList = new JList<>(listModel);
+        Theme.styleList(friendList);
 
         friendList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -39,8 +40,10 @@ public class FriendListPanel extends JPanel {
 
         // ============ 오른쪽: 공유된 일정 =============
         sharedTodoArea = new JTextArea();
+        Theme.styleTextArea(sharedTodoArea);
         sharedTodoArea.setEditable(false);
         sharedTodoArea.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        
 
         JScrollPane todoScroll = new JScrollPane(sharedTodoArea);
         todoScroll.setBorder(BorderFactory.createTitledBorder("나에게 공유된 일정"));
@@ -54,12 +57,16 @@ public class FriendListPanel extends JPanel {
 
         // ============ 아래쪽: ID 입력 + 친구추가 + 요청목록 버튼 =============
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        
 
         JLabel label = new JLabel("ID:");
         JTextField idField = new JTextField(12);
+        Theme.styleTextField(idField);
 
         JButton addBtn = new JButton("친구 추가");
+        Theme.styleButton(addBtn);
         JButton requestListBtn = new JButton("요청 목록");
+        Theme.styleButton(requestListBtn);
 
         bottomPanel.add(label);
         bottomPanel.add(idField);
@@ -112,6 +119,13 @@ public class FriendListPanel extends JPanel {
     public void setUser(String userId) {
         this.currentUserId = userId;
         loadFriends();
+    }
+    
+    // 로그아웃 시 FriendListPanel 초기화
+    public void clear() {
+        currentUserId = null;
+        listModel.clear();
+        sharedTodoArea.setText("친구를 선택하여 공유된 일정을 확인하세요.");
     }
 
     // 친구 목록 로드

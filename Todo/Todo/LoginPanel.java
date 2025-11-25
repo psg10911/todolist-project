@@ -9,6 +9,8 @@ import java.awt.event.*;
 
 public class LoginPanel extends JPanel {
     private ToDoListApp mainApp;
+    private JTextField idField;
+    private JPasswordField pwField;
 
     public LoginPanel(ToDoListApp mainApp) {
         this.mainApp = mainApp;
@@ -31,7 +33,7 @@ public class LoginPanel extends JPanel {
         card.add(title);
 
         // 아이디 필드
-        JTextField idField = new JTextField("  아이디 입력");
+        idField = new JTextField("  아이디 입력");
         Theme.styleTextField(idField);
         idField.setForeground(Theme.TEXT_SUB);
         idField.setBounds(50, 130, 300, 45);
@@ -39,7 +41,7 @@ public class LoginPanel extends JPanel {
         card.add(idField);
 
         // 비밀번호 필드
-        JPasswordField pwField = new JPasswordField("  비밀번호 입력");
+        pwField = new JPasswordField("  비밀번호 입력");
         Theme.styleTextField(pwField);
         pwField.setForeground(Theme.TEXT_SUB);
         pwField.setEchoChar((char) 0);
@@ -93,6 +95,18 @@ public class LoginPanel extends JPanel {
         });
 
         add(card);
+    }
+
+    public void clearFields() {
+        if (idField != null) {
+            idField.setText("  아이디 입력");
+            idField.setForeground(Theme.TEXT_SUB);
+        }
+        if (pwField != null) {
+            pwField.setText("");
+            pwField.setForeground(Theme.TEXT_SUB);
+            pwField.setEchoChar((char) 0);
+        }
     }
 
     private void addPlaceholderBehavior(JTextComponent field, String placeholder) {

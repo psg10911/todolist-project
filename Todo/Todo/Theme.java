@@ -2,6 +2,7 @@ package Todo;
 
 import javax.swing.*;
 import javax.swing.border.Border;
+import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 
@@ -12,7 +13,7 @@ public class Theme {
     // ===== 색상 팔레트 (Flat Design) =====
     public static final Color PRIMARY = new Color(52, 152, 219);    // 메인 블루
     public static final Color SECONDARY = new Color(41, 128, 185);  // 진한 블루 (버튼 호버용)
-    public static final Color ACCENT = new Color(231, 76, 60);      // 포인트/삭제 레드 (★ 추가됨)
+    public static final Color ACCENT = new Color(231, 76, 60);      // 포인트/삭제 레드
     public static final Color BACKGROUND = new Color(245, 246, 250); // 앱 전체 배경
     public static final Color CARD_BG = Color.WHITE;                // 카드/패널 배경
     public static final Color TEXT_MAIN = new Color(44, 62, 80);    // 진한 텍스트
@@ -20,8 +21,8 @@ public class Theme {
     public static final Color BORDER = new Color(223, 230, 233);    // 테두리 색상
 
     // ===== 폰트 (한글 깨짐 방지: 맑은 고딕) =====
-    public static final Font FONT_BOLD_26 = new Font("맑은 고딕", Font.BOLD, 26); // (★ 기존 호환용)
-    public static final Font FONT_BOLD_24 = new Font("맑은 고딕", Font.BOLD, 24); // (★ 추가됨)
+    public static final Font FONT_BOLD_26 = new Font("맑은 고딕", Font.BOLD, 26);
+    public static final Font FONT_BOLD_24 = new Font("맑은 고딕", Font.BOLD, 24);
     public static final Font FONT_BOLD_16 = new Font("맑은 고딕", Font.BOLD, 16);
     public static final Font FONT_REGULAR_14 = new Font("맑은 고딕", Font.PLAIN, 14);
     public static final Font FONT_REGULAR_12 = new Font("맑은 고딕", Font.PLAIN, 12);
@@ -49,16 +50,12 @@ public class Theme {
         });
     }
 
-    /** 삭제/위험 버튼 스타일 (★ 추가됨) */
+    /** 삭제/위험 버튼 스타일 */
     public static void styleDangerButton(JButton btn) {
-        styleButton(btn); // 기본 스타일 적용 후 색상만 덮어쓰기
+        styleButton(btn); 
         btn.setBackground(ACCENT);
         
-        // 호버 효과도 붉은색 계열로 재정의
-        // 기존 리스너 제거 후 새로 추가 (중복 방지 위해 단순하게 구현)
-        for (java.awt.event.MouseListener ml : btn.getMouseListeners()) {
-             // 필요시 제거 로직을 넣을 수 있으나, 간단히 위에 덮어씌우는 방식으로 처리
-        }
+        for (java.awt.event.MouseListener ml : btn.getMouseListeners()) { /* 기존 리스너 유지 */ }
         
         btn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
@@ -97,5 +94,32 @@ public class Theme {
         
         DefaultTableCellRenderer centerRenderer = (DefaultTableCellRenderer)table.getTableHeader().getDefaultRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+    }
+
+    // ★ [추가됨] 리스트(JList) 스타일링
+    public static void styleList(JList<?> list) {
+        list.setFont(FONT_REGULAR_14);
+        list.setSelectionBackground(new Color(214, 234, 248)); // 테이블과 동일한 연한 파랑 선택색
+        list.setSelectionForeground(TEXT_MAIN);
+        list.setFixedCellHeight(35); // 행 높이 넉넉하게
+        list.setBackground(Color.WHITE);
+    }
+
+    // ★ [추가됨] 텍스트 영역(JTextArea) 스타일링
+    public static void styleTextArea(JTextArea area) {
+        area.setFont(FONT_REGULAR_14);
+        area.setForeground(TEXT_MAIN);
+        area.setBackground(Color.WHITE);
+        area.setLineWrap(true);     // 줄바꿈 자동
+        area.setWrapStyleWord(true); // 단어 단위 줄바꿈
+    }
+
+    // ★ [추가됨] 타이틀 보더(그룹박스 제목) 스타일링 헬퍼
+    public static TitledBorder createTitledBorder(String title) {
+        Border line = BorderFactory.createLineBorder(BORDER);
+        TitledBorder border = BorderFactory.createTitledBorder(line, title);
+        border.setTitleFont(FONT_BOLD_16);
+        border.setTitleColor(PRIMARY);
+        return border;
     }
 }
