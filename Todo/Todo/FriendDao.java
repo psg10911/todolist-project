@@ -182,4 +182,5 @@ public class FriendDao {
         }
         return sharedList;
     }
+    
 }

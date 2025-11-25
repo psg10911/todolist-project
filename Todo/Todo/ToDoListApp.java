@@ -47,18 +47,24 @@ public class ToDoListApp extends JFrame {
 
     // LoginPanel에서 성공하면 호출
     public void initAfterLogin(String userId) {
-        if (!seedLoaded && !TodoDao.hasAnyTodo(userId) ) {            
-        TodoFile.readAllAndInsert("Todo/Todo/Todo_persona.txt");// 시드 데이터 파일에서 읽어와 DB에 삽입
-        //TodoFile.readAllAndInsert("C:\\Users\\pko\\Desktop\\WorkingFolder\\todolist-project\\Todo\\Todo\\Todo_persona.txt");
-        seedLoaded = true;// 시드 데이터 로드 완료 표시
+        
+        // ★ [핵심 수정 로직] ★
+        // 1. 로그인한 ID가 'user'이고 (특정 ID에만 시드 데이터 주입),
+        // 2. 'user' 계정에 할 일이 하나도 없을 때만 로드합니다. (딱 한 번만 로드)
+        if ("user".equals(userId) && !TodoDao.hasAnyTodo(userId)) {            
+            // TodoFile.readAllAndInsert는 파일에 적힌 ID(user)를 그대로 사용하기 때문에, 
+            // 파일 내용을 로드하면 DB에 user의 할 일이 생깁니다.
+            TodoFile.readAllAndInsert("Todo\\Todo\\Todo_persona.txt");
+            
+            System.out.println("초기 데이터가 'user' 계정에 로드되었습니다.");
         }
-        mainPanel.getTaskPanel().initAfterLogin(userId);// 할 일 패널 초기화
-        mainPanel.setCurrentUserId(userId);// 현재 사용자 ID 설정
-        mainPanel.getFriendListPanel().setUser(userId);// 친구 목록 패널에 사용자 설정
-        showPanel("MAIN");// 메인 패널 보이기
-       
-    }
+        // 'pko'와 같은 다른 ID가 로그인하면, if 조건에 걸리지 않아 로드 자체가 되지 않습니다.
 
+        mainPanel.getTaskPanel().initAfterLogin(userId);
+        mainPanel.setCurrentUserId(userId);
+        mainPanel.getFriendListPanel().setUser(userId);
+        showPanel("MAIN");
+    }
     // 로그아웃 메서드
     public void logout() {
         // MainPanel 초기화

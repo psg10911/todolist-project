@@ -67,4 +67,9 @@ public class FriendService {
         
         return sharedTasks;
     }
+
+    public boolean shareTodo(int todoId, String myId, String friendId) {
+    // 이미 DAO에 구현된 shareTodo 호출
+    return friendDAO.shareTodo(todoId, myId, friendId);
+}
 }

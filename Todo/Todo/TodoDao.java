@@ -81,12 +81,20 @@ public class TodoDao {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
     
+
+    // 변경
+    // 특정 사용자가 할 일이 하나라도 있는지 확인하는 메서드
+    // 이미 데이터가 로드되어있대면 다시 로드 방지
     public static boolean hasAnyTodo(String userId) {
-        String sql = "SELECT EXISTS(SELECT 1 FROM todos WHERE user_id=? LIMIT 1)";
-        try (var con = DBUtill.getConnection(); var ps  = con.prepareStatement(sql)) {
+        String sql = "SELECT 1 FROM todos WHERE user_id = ? LIMIT 1";
+        try (Connection con = DBUtill.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, userId);
-            try (var rs = ps.executeQuery()) { return rs.next() && rs.getInt(1) == 1; }
-        } catch (SQLException e) { throw new RuntimeException(e); }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next(); // 레코드가 하나라도 있으면 true
+            }
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public static List<Task> findByDate(String userId, LocalDate date){
@@ -94,6 +102,8 @@ public class TodoDao {
         LocalDateTime e = date.atTime(LocalTime.MAX);
         return findByRange(userId, s, e);
     }
+
+    
 
     // ★ [주간 시간표용] 특정 기간의 일정을 모두 가져오는 메서드
     public static List<Task> findByRange(String userId, LocalDateTime start, LocalDateTime end) {
@@ -122,5 +132,7 @@ public class TodoDao {
         } catch (SQLException ex) { throw new RuntimeException(ex); }
         return list;
     }
+
+    
     
 }

@@ -24,11 +24,14 @@ public class TaskPanel extends JPanel {
     private LocalDate currentDate;
     private String currentUserId;
 
+    private FriendService friendService;
 
     public TaskPanel() {
         setLayout(new BorderLayout(0, 10));
         setBackground(Theme.BACKGROUND);
         setPreferredSize(new Dimension(450, 0)); 
+
+        this.friendService = new FriendService();
 
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBackground(Theme.BACKGROUND);
@@ -105,14 +108,17 @@ public class TaskPanel extends JPanel {
 
         JButton addBtn = new JButton("추가");
         JButton editBtn = new JButton("수정");
+        JButton shareBtn = new JButton("공유"); // ★ 추가된 버튼
         JButton delBtn = new JButton("삭제");
 
         Theme.styleButton(addBtn);
         Theme.styleButton(editBtn);
+        Theme.styleButton(shareBtn);
         Theme.styleDangerButton(delBtn);
 
         bottom.add(addBtn);
         bottom.add(editBtn);
+        bottom.add(shareBtn);
         bottom.add(delBtn);
         add(bottom, BorderLayout.SOUTH);
 
@@ -195,6 +201,53 @@ public class TaskPanel extends JPanel {
                 TodoDao.delete(t.getId(), t.getUserId());
                 SwingUtilities.invokeLater(() -> model.removeAt(row));
             }).start();
+        });
+
+        shareBtn.addActionListener(e -> {
+            // 1. 선택된 일정 확인
+            int viewRow = table.getSelectedRow();
+            if (viewRow < 0) {
+                JOptionPane.showMessageDialog(this, "공유할 일정을 선택해주세요.");
+                return;
+            }
+            
+            // 2. 현재 로그인 여부 확인
+            if (!ensureUserBound()) return;
+
+            // 3. Task 객체 가져오기
+            int row = table.convertRowIndexToModel(viewRow);
+            Task task = model.getTaskAt(row);
+
+            // 4. 친구 목록 불러오기 (팝업에 띄우기 위해)
+            List<String> friends = friendService.getFriends(currentUserId);
+            if (friends.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "공유할 친구가 없습니다. 먼저 친구를 추가해주세요.");
+                return;
+            }
+
+            // 5. 친구 선택 팝업 띄우기
+            String selectedFriend = (String) JOptionPane.showInputDialog(
+                    this,
+                    "'" + task.getTitle() + "' 일정을 누구에게 공유하시겠습니까?",
+                    "일정 공유",
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    friends.toArray(), // 친구 리스트 배열
+                    friends.get(0)     // 기본 선택값
+            );
+
+            // 6. 선택 후 공유 로직 실행
+            if (selectedFriend != null) {
+                // FriendService에 shareTodo 메서드가 있다고 가정 (또는 DAO 직접 호출)
+                // 만약 Service에 메서드가 없다면 아래 참고 코드를 Service에 추가해야 함
+                boolean success = friendService.shareTodo(task.getId(), currentUserId, selectedFriend);
+                
+                if (success) {
+                    JOptionPane.showMessageDialog(this, selectedFriend + "님에게 일정을 공유했습니다!");
+                } else {
+                    JOptionPane.showMessageDialog(this, "공유에 실패했습니다. (이미 공유된 일정이거나 오류 발생)");
+                }
+            }
         });
     }
 
