@@ -119,12 +119,12 @@ public class TaskDialog extends JDialog {
         endSelector = new DateTimeSelector(baseEnd);
 
         gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.15;
-        formPanel.add(new JLabel("시작"), gbc); // ★ "시작"으로 통일
+        formPanel.add(new JLabel("시작"), gbc);
         gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 0.85;
         formPanel.add(startSelector, gbc);
 
         gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.15;
-        formPanel.add(new JLabel("종료"), gbc); // ★ "종료"로 통일
+        formPanel.add(new JLabel("종료"), gbc);
         gbc.gridx = 1; gbc.gridy = 3; gbc.weightx = 0.85;
         formPanel.add(endSelector, gbc);
 
@@ -204,7 +204,7 @@ public class TaskDialog extends JDialog {
                      JOptionPane.showMessageDialog(this, "날짜를 선택해주세요.");
                      return;
                 }
-                startDT = d1.atStartOfDay();
+                startDT = d1.atTime(12,0,0); // 시작 기간이 -1일 되는 문제 방지
                 endDT = d2.atTime(23, 59, 59); 
             } else {
                 LocalTime t1 = startSelector.getSelectedTime();
