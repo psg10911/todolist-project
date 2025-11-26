@@ -158,14 +158,29 @@ public class FriendListPanel extends JPanel {
         }
 
         for (Task t : tasks) {
-            sharedTodoArea.append(
-                String.format(
-                    "ID %d | %s | %s\n",
-                    t.getId(),
-                    t.isCompleted() ? "[완료]" : "[미완]",
-                    t.getTitle()
-                )
-            );
+            String status = t.isCompleted() ? "[완료]" : "[미완]";
+            String lineInfo;
+
+            // ★ [수정] Task 타입에 따라 다른 형식으로 출력
+            if (t instanceof TimeTask) {
+                // TimeTask: 이름 | 날짜 | 시작시간 | 종료시간 | 완료여부
+                String rawStart = t.getStartDate(); // "yyyy-MM-dd HH:mm:ss"
+                String rawEnd = t.getEndDate();
+                
+                // 문자열 파싱 (안전하게 길이 체크)
+                String date = rawStart.length() >= 10 ? rawStart.substring(0, 10) : rawStart;
+                String startTime = rawStart.length() >= 16 ? rawStart.substring(11, 16) : "";
+                String endTime = rawEnd.length() >= 16 ? rawEnd.substring(11, 16) : "";
+
+                lineInfo = String.format("%s  |  %s  |  %s ~ %s  |  %s", 
+                        t.getTitle(), date, startTime, endTime, status);
+            } else {
+                // PeriodTask: 이름 | 시작일 ~ 종료일 | 완료여부 (기존 방식 유지)
+                lineInfo = String.format("%s  |  %s ~ %s  |  %s", 
+                        t.getTitle(), t.getFormattedStart(), t.getFormattedEnd(), status);
+            }
+
+            sharedTodoArea.append(lineInfo + "\n");
         }
     }
 }

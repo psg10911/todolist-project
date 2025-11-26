@@ -2,38 +2,32 @@ package Todo;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.geom.RoundRectangle2D;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class WeeklyTimeTableDialog extends JDialog {
 
-    private static final DateTimeFormatter FULL_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("MM/dd");
-    
     private String currentUserId;
     private LocalDate currentMonday;
+    
+    // ★ [변경] 분리된 TimeTablePanel 사용
     private TimeTablePanel timeTablePanel;
     private JLabel weekLabel;
+    
+    // ★ [추가] 로직 처리는 Controller에게
+    private TodoController todoController;
 
     public WeeklyTimeTableDialog(Window parent, String userId) {
         super(parent, "주간 시간표", ModalityType.APPLICATION_MODAL);
         this.currentUserId = userId;
         this.currentMonday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        this.todoController = new TodoController();
 
-        setSize(1100, 800); // 조금 더 넓게
+        setSize(1100, 800);
         setLocationRelativeTo(parent);
         setLayout(new BorderLayout());
         getContentPane().setBackground(Theme.CARD_BG);
@@ -64,7 +58,12 @@ public class WeeklyTimeTableDialog extends JDialog {
         add(topPanel, BorderLayout.NORTH);
 
         // 2. 중앙 시간표 패널 (스크롤)
+        // ★ [변경] 분리된 패널 생성
         timeTablePanel = new TimeTablePanel();
+        
+        // ★ [추가] 패널에서 Task가 더블클릭되면 -> 수정창을 열도록 연결 (Callback)
+        timeTablePanel.setOnTaskDoubleClicked(task -> openEditDialog(task));
+
         JScrollPane scrollPane = new JScrollPane(timeTablePanel);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         scrollPane.setBorder(null);
@@ -84,7 +83,6 @@ public class WeeklyTimeTableDialog extends JDialog {
         add(bottomPanel, BorderLayout.SOUTH);
 
         updateView();
-        // 초기 스크롤 위치 (09:00)
         SwingUtilities.invokeLater(() -> scrollPane.getViewport().setViewPosition(new Point(0, 9 * 50)));
     }
 
@@ -94,7 +92,10 @@ public class WeeklyTimeTableDialog extends JDialog {
             currentMonday.format(DateTimeFormatter.ofPattern("yyyy.MM.dd")), 
             sunday.format(DateTimeFormatter.ofPattern("MM.dd"))));
         
+        // ★ [변경] Controller 사용
         List<Task> tasks = TodoDao.findByRange(currentUserId, currentMonday.atStartOfDay(), sunday.atTime(LocalTime.MAX));
+        
+        // 패널에게 데이터 전달
         timeTablePanel.setData(currentMonday, tasks);
     }
 
@@ -108,267 +109,12 @@ public class WeeklyTimeTableDialog extends JDialog {
         if (updatedTask != null) {
             updatedTask.setId(originalTask.getId());
             updatedTask.setUserId(originalTask.getUserId());
-            TodoDao.update(updatedTask);
+            
+            // ★ [변경] Controller 사용
+            todoController.updateTask(updatedTask);
             updateView(); // 화면 갱신
         }
     }
-
-    // =========================================================
-    // ★ 스마트 시간표 패널 (겹침 계산 + 테마 적용)
-    // =========================================================
-    private class TimeTablePanel extends JPanel {
-        private final int ROW_HEIGHT = 50; 
-        private final int HEADER_HEIGHT = 45; 
-        private final int TIME_COL_WIDTH = 60; 
-        
-        private LocalDate startOfWeek;
-        private Map<Integer, List<RenderBlock>> dayBlocks = new HashMap<>();
-
-        public TimeTablePanel() {
-            setBackground(Theme.CARD_BG);
-            setPreferredSize(new Dimension(800, 24 * ROW_HEIGHT + HEADER_HEIGHT + 20)); 
-            
-            // 더블 클릭 이벤트 리스너
-            addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    if (e.getClickCount() == 2) {
-                        checkClick(e.getPoint());
-                    }
-                }
-            });
-        }
-
-        // 클릭된 위치의 일정 찾기
-        private void checkClick(Point p) {
-            for (List<RenderBlock> blocks : dayBlocks.values()) {
-                for (RenderBlock block : blocks) {
-                    if (block.bounds != null && block.bounds.contains(p)) {
-                        openEditDialog(block.task);
-                        return; 
-                    }
-                }
-            }
-        }
-
-        public void setData(LocalDate startOfWeek, List<Task> tasks) {
-            this.startOfWeek = startOfWeek;
-            this.dayBlocks.clear();
-            
-            // 1. 데이터 분류
-            distributeTasks(tasks);
-            
-            // 2. 스마트 레이아웃 계산 (겹침 처리)
-            for (int i = 0; i < 7; i++) {
-                if (dayBlocks.containsKey(i)) {
-                    calculateLayout(dayBlocks.get(i));
-                }
-            }
-            repaint();
-        }
-
-        private void distributeTasks(List<Task> tasks) {
-            if (tasks == null) return;
-            for (Task t : tasks) {
-                try {
-                    String sStr = t.getStartDate(); String eStr = t.getEndDate();
-                    if (sStr == null || eStr == null) continue;
-                    if (sStr.length() > 16) sStr = sStr.substring(0, 16);
-                    if (eStr.length() > 16) eStr = eStr.substring(0, 16);
-
-                    LocalDateTime startDT = LocalDateTime.parse(sStr, FULL_FMT);
-                    LocalDateTime endDT = LocalDateTime.parse(eStr, FULL_FMT);
-
-                    // ★ 하루를 넘기는 장기 일정은 표시 제외
-                    if (!startDT.toLocalDate().equals(endDT.toLocalDate())) continue; 
-
-                    for (int i = 0; i < 7; i++) {
-                        LocalDate currentDay = startOfWeek.plusDays(i);
-                        LocalDateTime dayStart = currentDay.atStartOfDay();
-                        LocalDateTime dayEnd = currentDay.atTime(LocalTime.MAX);
-
-                        if (startDT.isBefore(dayEnd) && endDT.isAfter(dayStart)) {
-                            // 해당 요일의 분 단위 시간 계산
-                            int startMin = startDT.getHour() * 60 + startDT.getMinute();
-                            int endMin = endDT.getHour() * 60 + endDT.getMinute();
-                            // 자정 처리
-                            if (endDT.isAfter(dayEnd)) endMin = 24 * 60;
-
-                            RenderBlock block = new RenderBlock(t, startMin, endMin);
-                            dayBlocks.computeIfAbsent(i, k -> new ArrayList<>()).add(block);
-                        }
-                    }
-                } catch (Exception e) {}
-            }
-        }
-
-        // ★ Column Packing Algorithm: 겹치는 일정을 나란히 배치
-        private void calculateLayout(List<RenderBlock> blocks) {
-            if (blocks.isEmpty()) return;
-            
-            // 시작 시간 순 정렬
-            Collections.sort(blocks, Comparator.comparingInt(b -> b.startMin));
-            
-            // 겹치는 그룹(컬럼) 나누기
-            List<List<RenderBlock>> columns = new ArrayList<>();
-            for (RenderBlock block : blocks) {
-                boolean placed = false;
-                for (List<RenderBlock> col : columns) {
-                    RenderBlock last = col.get(col.size() - 1);
-                    // 겹치지 않으면 이 컬럼에 추가
-                    if (last.endMin <= block.startMin) {
-                        col.add(block);
-                        placed = true;
-                        break;
-                    }
-                }
-                // 들어갈 곳이 없으면 새 컬럼 생성
-                if (!placed) {
-                    List<RenderBlock> newCol = new ArrayList<>();
-                    newCol.add(block);
-                    columns.add(newCol);
-                }
-            }
-            
-            // 메타데이터 설정 (그릴 때 사용)
-            int totalCols = columns.size();
-            for (int i = 0; i < totalCols; i++) {
-                for (RenderBlock b : columns.get(i)) {
-                    b.colIndex = i;
-                    b.totalCols = totalCols;
-                }
-            }
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            Graphics2D g2 = (Graphics2D) g;
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-            int width = getWidth(); int height = getHeight();
-            int colWidth = (width - TIME_COL_WIDTH) / 7;
-
-            g2.setFont(Theme.FONT_REGULAR_12);
-            FontMetrics fm = g2.getFontMetrics();
-
-            // 1. 시간 가로선
-            for (int i = 0; i <= 24; i++) {
-                int y = HEADER_HEIGHT + (i * ROW_HEIGHT);
-                g2.setColor(new Color(240, 240, 240)); // 연한 격자
-                g2.drawLine(TIME_COL_WIDTH, y, width, y);
-                
-                if (i < 24) {
-                    String timeStr = String.format("%02d:00", i);
-                    g2.setColor(Theme.TEXT_SUB);
-                    g2.drawString(timeStr, TIME_COL_WIDTH - fm.stringWidth(timeStr) - 8, y + fm.getAscent() / 2);
-                }
-            }
-
-            // 2. 요일 구분 세로선
-            g2.setColor(Theme.BORDER);
-            g2.drawLine(TIME_COL_WIDTH, 0, TIME_COL_WIDTH, height);
-            for (int i = 1; i <= 7; i++) {
-                int x = TIME_COL_WIDTH + (i * colWidth);
-                g2.drawLine(x, 0, x, height);
-            }
-
-            // 3. 요일 헤더
-            String[] dayNames = {"월", "화", "수", "목", "금", "토", "일"};
-            for (int i = 0; i < 7; i++) {
-                int x = TIME_COL_WIDTH + (i * colWidth);
-                LocalDate day = startOfWeek.plusDays(i);
-                
-                g2.setColor(Theme.BACKGROUND); 
-                g2.fillRect(x, 0, colWidth, HEADER_HEIGHT);
-                g2.setColor(Theme.BORDER);
-                g2.drawRect(x, 0, colWidth, HEADER_HEIGHT);
-
-                String dayText = dayNames[i] + " (" + day.format(DATE_FMT) + ")";
-                if (day.equals(LocalDate.now())) {
-                    g2.setColor(Theme.PRIMARY); 
-                    g2.setFont(Theme.FONT_BOLD_16);
-                } else {
-                    g2.setColor(Theme.TEXT_MAIN);
-                    g2.setFont(Theme.FONT_BOLD_16);
-                }
-                int textX = x + (colWidth - fm.stringWidth(dayText)) / 2;
-                int textY = (HEADER_HEIGHT + fm.getAscent()) / 2 - 2;
-                g2.drawString(dayText, textX, textY);
-            }
-
-            // 4. 일정 블록 그리기
-            for (int i = 0; i < 7; i++) {
-                if (!dayBlocks.containsKey(i)) continue;
-                int dayX = TIME_COL_WIDTH + (i * colWidth);
-                
-                for (RenderBlock b : dayBlocks.get(i)) {
-                    // ★ 너비 분할 (스마트 레이아웃 적용)
-                    int blockWidth = (colWidth - 4) / b.totalCols;
-                    int x = dayX + 2 + (b.colIndex * blockWidth);
-                    
-                    double pixelsPerMin = (double) ROW_HEIGHT / 60.0;
-                    int y = HEADER_HEIGHT + (int)(b.startMin * pixelsPerMin);
-                    int h = (int)((b.endMin - b.startMin) * pixelsPerMin);
-                    h = Math.max(h, 25); // 최소 높이
-
-                    // 좌표 저장 (더블클릭 감지용)
-                    b.bounds = new Rectangle(x, y, blockWidth - 1, h);
-
-                    Color color = getHashColor(b.task.getTitle());
-                    
-                    // 배경
-                    g2.setColor(color);
-                    g2.fill(new RoundRectangle2D.Float(x, y, blockWidth - 1, h, 8, 8));
-                    
-                    // 왼쪽 포인트 띠
-                    g2.setColor(color.darker());
-                    g2.fill(new RoundRectangle2D.Float(x, y, 5, h, 8, 8)); 
-                    g2.fillRect(x+3, y, 3, h);
-
-                    // 텍스트
-                    g2.setColor(getContrastColor(color));
-                    g2.setFont(Theme.FONT_BOLD_16.deriveFont(11f)); 
-                    
-                    // 클리핑 (글자 삐져나감 방지)
-                    Shape clip = g2.getClip();
-                    g2.clipRect(x + 8, y, blockWidth - 10, h);
-                    
-                    g2.drawString(b.task.getTitle(), x + 8, y + 14);
-                    if (h > 30) {
-                        String timeStr = String.format("%02d:%02d", b.startMin/60, b.startMin%60);
-                        g2.setFont(Theme.FONT_REGULAR_12.deriveFont(10f));
-                        g2.drawString(timeStr, x + 8, y + 26);
-                    }
-                    g2.setClip(clip);
-                }
-            }
-        }
-
-        // 해시 기반 파스텔톤 색상 생성
-        private Color getHashColor(String text) {
-            int hash = text.hashCode();
-            int r = ((hash & 0xFF0000) >> 16) % 127 + 128;
-            int g = ((hash & 0x00FF00) >> 8) % 127 + 128;
-            int b = (hash & 0x0000FF) % 127 + 128;
-            return new Color(r, g, b);
-        }
-        
-        // 배경색 대비 글자색 (검/흰) 자동 선택
-        private Color getContrastColor(Color bg) {
-            double y = (299 * bg.getRed() + 587 * bg.getGreen() + 114 * bg.getBlue()) / 1000;
-            return y >= 128 ? Color.DARK_GRAY : Color.WHITE;
-        }
-    }
-
-    // 렌더링용 데이터 클래스
-    private static class RenderBlock {
-        Task task;
-        int startMin, endMin;
-        int colIndex = 0, totalCols = 1; 
-        Rectangle bounds;
-        public RenderBlock(Task t, int s, int e) {
-            this.task = t; this.startMin = s; this.endMin = e;
-        }
-    }
+    
+    // (내부 클래스 TimeTablePanel은 삭제됨 -> 별도 파일로 이동)
 }

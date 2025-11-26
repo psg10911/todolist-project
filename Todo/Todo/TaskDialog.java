@@ -46,7 +46,7 @@ public class TaskDialog extends JDialog {
     public TaskDialog(Frame owner, Task taskToEdit) {
         super(owner, true);
         this.editMode = true;
-        this.workingCopy = new Task(taskToEdit);
+        this.workingCopy = taskToEdit.copy();
         this.currentUserId = taskToEdit.getUserId();
         
         try {
@@ -73,9 +73,9 @@ public class TaskDialog extends JDialog {
         startSelector.setDateTime(start);
         endSelector.setDateTime(end);
 
-        int pri = workingCopy.getPriority();
-        if (pri == 1) priLowBtn.setSelected(true);
-        else if (pri == 3) priHighBtn.setSelected(true);
+        Priority pri = workingCopy.getPriority();
+        if (pri == Priority.LOW) priLowBtn.setSelected(true);
+        else if (pri == Priority.HIGH) priHighBtn.setSelected(true);
         else priMidBtn.setSelected(true);
     }
 
@@ -229,7 +229,7 @@ public class TaskDialog extends JDialog {
 
             String startStr = startDT.format(FULL_FMT);
             String endStr = endDT.format(FULL_FMT);
-            int priority = priLowBtn.isSelected() ? 1 : (priHighBtn.isSelected() ? 3 : 2);
+            Priority priority = priLowBtn.isSelected() ? Priority.LOW : (priHighBtn.isSelected() ? Priority.HIGH : Priority.MEDIUM);
             boolean completed = completedCheck.isSelected();
             String content = contentArea.getText().trim();
 
@@ -242,10 +242,16 @@ public class TaskDialog extends JDialog {
                 workingCopy.setPriority(priority); 
                 resultTask = workingCopy;
             } else {
-                Task newTask = new Task(title, content, startStr, endStr);
-                newTask.setCompleted(completed);
-                newTask.setPriority(priority); 
-                resultTask = newTask;
+                if (isMulti) {
+                    // 기간 일정이면 PeriodTask
+                    resultTask = new PeriodTask(title, content, startStr, endStr);
+                } else {
+                    // 시간 일정이면 TimeTask
+                    resultTask = new TimeTask(title, content, startStr, endStr);
+                }
+                
+                resultTask.setCompleted(completed);
+                resultTask.setPriority(priority); 
             }
             dispose();
         });

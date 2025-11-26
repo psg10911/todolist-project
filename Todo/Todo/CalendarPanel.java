@@ -16,13 +16,16 @@ public class CalendarPanel extends JPanel {
     private JPanel calendarGridPanel;
     private LocalDate currentDate;
     private TaskPanel taskPanel;
-    private String currentUserId; 
+    
+    // ★ [추가] Controller 사용
+    private TodoController todoController;
     
     private static final DateTimeFormatter FULL_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     public CalendarPanel(TaskPanel taskPanel) {
         this.taskPanel = taskPanel;
         this.currentDate = LocalDate.now();
+        this.todoController = new TodoController();
         
         setLayout(new BorderLayout(0, 20));
         setBackground(Theme.CARD_BG); 
@@ -37,19 +40,13 @@ public class CalendarPanel extends JPanel {
         updateCalendar();
     }
 
-    public void setCurrentUserId(String userId) {
-        this.currentUserId = userId;
-        updateCalendar(); 
-    }
-
-
-    // 로그아웃 시 CalendarPanel 초기화
     public void clear() {
-        currentUserId = null;
         currentDate = LocalDate.now();
         updateCalendar();
     }
     
+    // ... (createTopPanel, styleNavButton, changeDate, createCalendarPanel은 기존과 동일) ...
+    // (기존 코드를 그대로 유지해주세요)
     private JPanel createTopPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Theme.CARD_BG);
@@ -132,7 +129,7 @@ public class CalendarPanel extends JPanel {
         return panel;
     }
 
-    private void updateCalendar() {
+    public void updateCalendar() {
         calendarGridPanel.removeAll();
         monthYearLabel.setText(currentDate.format(DateTimeFormatter.ofPattern("yyyy. MM")));
 
@@ -144,14 +141,18 @@ public class CalendarPanel extends JPanel {
             calendarGridPanel.add(new JLabel(""));
         }
 
+        String currentUserId = UserSession.getInstance().getUserId();
+
         int daysInMonth = yearMonth.lengthOfMonth();
         for (int day = 1; day <= daysInMonth; day++) {
             LocalDate thisDay = currentDate.withDayOfMonth(day);
             
+            // ★ [변경] 분리된 DayButton 사용
             DayButton dayButton = new DayButton(String.valueOf(day));
             
             if (currentUserId != null) {
-                List<Task> tasks = TodoDao.findByDate(currentUserId, thisDay);
+                // ★ [변경] Controller 사용
+                List<Task> tasks = todoController.getTasksByDate(currentUserId, thisDay);
                 List<Color> dotColors = new ArrayList<>();
                 List<Color> barColors = new ArrayList<>();
 
@@ -168,7 +169,6 @@ public class CalendarPanel extends JPanel {
 
                             Color taskColor = getHashColor(t.getTitle());
 
-                            // 하루 이상이면 막대, 당일이면 점
                             if (!startData.equals(endData)) {
                                 barColors.add(taskColor);
                             } else {
@@ -185,23 +185,8 @@ public class CalendarPanel extends JPanel {
             boolean isToday = thisDay.equals(LocalDate.now());
             boolean isSelected = thisDay.equals(currentDate);
 
-            dayButton.setFont(Theme.FONT_REGULAR_14);
-            dayButton.setFocusPainted(false);
-            dayButton.setBorder(null);
-            dayButton.setContentAreaFilled(false);
-            dayButton.setOpaque(false);
-
-            if (isToday) {
-                dayButton.setForeground(Color.WHITE);
-                dayButton.setFont(Theme.FONT_BOLD_16);
-                dayButton.setIsToday(true); 
-            } else if (isSelected) {
-                dayButton.setForeground(Theme.PRIMARY);
-                dayButton.setFont(Theme.FONT_BOLD_16);
-                dayButton.setIsSelected(true); 
-            } else {
-                dayButton.setForeground(Theme.TEXT_MAIN);
-            }
+            if (isToday) dayButton.setIsToday(true);
+            else if (isSelected) dayButton.setIsSelected(true);
 
             final int currentDay = day;
             dayButton.addActionListener(e -> {
@@ -225,100 +210,5 @@ public class CalendarPanel extends JPanel {
         return new Color(r, g, b);
     }
 
-    // =========================================================
-    // ★ 커스텀 날짜 버튼 (막대 + 점 + 초과 표시)
-    // =========================================================
-    private class DayButton extends JButton {
-        private List<Color> dotColors = new ArrayList<>();
-        private List<Color> barColors = new ArrayList<>();
-        
-        private boolean isToday = false;
-        private boolean isSelected = false;
-
-        public DayButton(String text) {
-            super(text);
-        }
-
-        public void setTaskColors(List<Color> dots, List<Color> bars) { 
-            this.dotColors = dots;
-            this.barColors = bars;
-        }
-        
-        public void setIsToday(boolean b) { this.isToday = b; }
-        public void setIsSelected(boolean b) { this.isSelected = b; }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g;
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-            int w = getWidth();
-            int h = getHeight();
-
-            // 1. 배경 그리기
-            if (isToday) {
-                g2.setColor(Theme.PRIMARY);
-                int diameter = Math.min(w, h) - 4;
-                g2.fillOval((w-diameter)/2, (h-diameter)/2, diameter, diameter);
-            } else if (isSelected) {
-                g2.setColor(new Color(225, 240, 255));
-                int diameter = Math.min(w, h) - 4;
-                g2.fillOval((w-diameter)/2, (h-diameter)/2, diameter, diameter);
-            }
-
-            // 2. ★ 상단 막대 그리기 (최대 3개)
-            if (!barColors.isEmpty()) {
-                int barHeight = 5; 
-                int barGap = 2;    
-                int startY = 4;    
-                int maxBars = 3; // 최대 3개까지만 그림
-
-                int count = Math.min(barColors.size(), maxBars);
-                
-                for (int i = 0; i < count; i++) {
-                    g2.setColor(barColors.get(i));
-                    g2.fillRoundRect(6, startY + (i * (barHeight + barGap)), w - 12, barHeight, 2, 2);
-                }
-                
-                // ★ 3개 초과시 우측 하단에 '+' 표시
-                if (barColors.size() > maxBars) {
-                    g2.setColor(Theme.TEXT_SUB);
-                    g2.setFont(new Font("SansSerif", Font.BOLD, 10));
-                    // 3번째 막대 높이 쯤 오른쪽에 표시
-                    g2.drawString("+", w - 10, startY + (count * (barHeight + barGap)) + 2); 
-                }
-            }
-
-            // 3. 텍스트 그리기 (기본)
-            super.paintComponent(g);
-
-            // 4. ★ 하단 점 그리기 (최대 3개)
-            if (!dotColors.isEmpty()) {
-                int dotSize = 6;
-                int gap = 3;
-                int maxDots = 3;
-                
-                int count = dotColors.size();
-                int displayCount = Math.min(count, maxDots);
-                boolean hasMore = count > maxDots;
-
-                int totalWidth = (displayCount * dotSize) + ((displayCount - 1) * gap);
-                if (hasMore) totalWidth += (gap + 6);
-
-                int startX = (w - totalWidth) / 2;
-                int y = h - 12; 
-
-                for (int i = 0; i < displayCount; i++) {
-                    g2.setColor(dotColors.get(i));
-                    g2.fillOval(startX + (i * (dotSize + gap)), y, dotSize, dotSize);
-                }
-
-                if (hasMore) {
-                    g2.setColor(Theme.TEXT_SUB);
-                    g2.setFont(new Font("SansSerif", Font.BOLD, 10));
-                    g2.drawString("+", startX + (displayCount * (dotSize + gap)), y + dotSize); 
-                }
-            }
-        }
-    }
+    // (내부 클래스 DayButton은 삭제됨 -> 별도 파일로 이동)
 }

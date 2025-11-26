@@ -2,6 +2,8 @@ package Todo;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -16,7 +18,11 @@ public class MainPanel extends JPanel {
     private CalendarPanel calendarPanel;
     private TaskPanel taskPanel;
     private FriendListPanel friendListPanel;
-    private String currentUserId;
+
+
+    
+
+    
 
     public MainPanel() {
         setLayout(new BorderLayout(15, 15)); 
@@ -26,6 +32,12 @@ public class MainPanel extends JPanel {
         taskPanel = new TaskPanel();
         calendarPanel = new CalendarPanel(taskPanel);
         friendListPanel = new FriendListPanel(new FriendService(), null);
+        // ★★★ [핵심 추가] 옵저버 패턴 연결 ★★★
+        // TaskPanel에서 데이터가 변하면 -> CalendarPanel을 다시 그려라!
+        taskPanel.addListener(() -> {
+            calendarPanel.updateCalendar(); // 캘린더의 점/막대 갱신
+        });
+        // ★★★★★★★★★★★★★★★★★★★★★★★
 
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         bottomPanel.setBackground(Theme.BACKGROUND); 
@@ -71,36 +83,44 @@ public class MainPanel extends JPanel {
             JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "친구 목록", true);
             dialog.setSize(650, 500);
             dialog.setLocationRelativeTo(this);
-            if (currentUserId != null) friendListPanel.setUser(currentUserId);
+            
+            // ★ [변경] 싱글톤 ID 사용
+            String userId = UserSession.getInstance().getUserId();
+            if (userId != null) friendListPanel.setUser(userId);
+            
             dialog.add(friendListPanel);
             dialog.setVisible(true);
         });
 
         // 오늘의 일정 (원형 시계)
         todayScheduleBtn.addActionListener(e -> {
-            if (currentUserId == null) return;
-            DailyScheduleDialog dialog = new DailyScheduleDialog(SwingUtilities.getWindowAncestor(this), currentUserId);
+            // ★ [변경] 싱글톤 ID 사용
+            String userId = UserSession.getInstance().getUserId();
+            if (userId == null) return;
+            DailyScheduleDialog dialog = new DailyScheduleDialog(SwingUtilities.getWindowAncestor(this), userId);
             dialog.setVisible(true);
         });
 
         // 주간 시간표 (격자 테이블)
         weeklyTimeTableBtn.addActionListener(e -> {
-            if (currentUserId == null) return;
-            WeeklyTimeTableDialog dialog = new WeeklyTimeTableDialog(SwingUtilities.getWindowAncestor(this), currentUserId);
+            // ★ [변경] 싱글톤 ID 사용
+            String userId = UserSession.getInstance().getUserId();
+            if (userId == null) return;
+            WeeklyTimeTableDialog dialog = new WeeklyTimeTableDialog(SwingUtilities.getWindowAncestor(this), userId);
             dialog.setVisible(true);
         });
     }
-    
-    public void setCurrentUserId(String userId) {
-        this.currentUserId = userId;
-        if (calendarPanel != null) {
-            calendarPanel.setCurrentUserId(userId);
-        }
-    }
 
+    public void initAfterLogin() {
+        // 1. 오늘의 할 일 목록 로드 (오른쪽 화면)
+        taskPanel.initAfterLogin();
+        
+        // 2. 캘린더의 점/막대 표시 갱신 (왼쪽 화면)
+        //    -> 이 부분이 있어야 로그인 직후에 점이 보입니다!
+        calendarPanel.updateCalendar();
+    }
+    
     public void clear() {
-        // 현재 사용자 ID 초기화
-        currentUserId = null;
         
         // 각 패널 초기화
         taskPanel.clear();

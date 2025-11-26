@@ -88,12 +88,16 @@ public class LoginPanel extends JPanel {
 
             boolean success = UserSql.loginUser(id, pw);
             if (success) {
-                mainApp.initAfterLogin(id);
+                // ★ [변경] 싱글톤에 로그인 정보 저장
+                UserSession.getInstance().login(id);
+                
+                // ★ [변경] 매개변수 없이 호출 (ToDoListApp도 수정 예정)
+                mainApp.initAfterLogin(); 
             } else {
                 JOptionPane.showMessageDialog(this, "아이디 또는 비밀번호가 올바르지 않습니다.");
             }
         });
-
+        
         add(card);
     }
 

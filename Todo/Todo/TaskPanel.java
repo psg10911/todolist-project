@@ -12,7 +12,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import javax.swing.table.DefaultTableModel;
-// ★ List를 사용하기 위해 임포트
 import java.util.ArrayList;
 
 public class TaskPanel extends JPanel {
@@ -22,9 +21,12 @@ public class TaskPanel extends JPanel {
     private TaskTableModel model;
     private TableRowSorter<TaskTableModel> sorter;
     private LocalDate currentDate;
-    private String currentUserId;
-
+    
     private FriendService friendService;
+    private TodoController todoController; // Controller 사용
+
+    // ★ [3단계 추가] 리스너 목록
+    private List<TaskUpdateListener> listeners = new ArrayList<>();
 
     public TaskPanel() {
         setLayout(new BorderLayout(0, 10));
@@ -32,12 +34,12 @@ public class TaskPanel extends JPanel {
         setPreferredSize(new Dimension(450, 0)); 
 
         this.friendService = new FriendService();
+        this.todoController = new TodoController(); 
 
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBackground(Theme.BACKGROUND);
         topPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
 
-        // ★ [수정됨] 상단 날짜 라벨 가운데 정렬
         selectedDateLabel = new JLabel(" ", SwingConstants.CENTER);
         selectedDateLabel.setFont(Theme.FONT_BOLD_24);
         selectedDateLabel.setForeground(Theme.TEXT_MAIN);
@@ -65,11 +67,9 @@ public class TaskPanel extends JPanel {
         table = new JTable(model);
         Theme.styleTable(table);
 
-        // ★ [추가됨] 테이블 셀 내용 가운데 정렬 설정
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
 
-        // 0번(체크박스)을 제외한 나머지 컬럼(1~4)에 가운데 정렬 적용
         for (int i = 1; i < table.getColumnCount(); i++) {
             table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         }
@@ -108,7 +108,7 @@ public class TaskPanel extends JPanel {
 
         JButton addBtn = new JButton("추가");
         JButton editBtn = new JButton("수정");
-        JButton shareBtn = new JButton("공유"); // ★ 추가된 버튼
+        JButton shareBtn = new JButton("공유");
         JButton delBtn = new JButton("삭제");
 
         Theme.styleButton(addBtn);
@@ -150,26 +150,31 @@ public class TaskPanel extends JPanel {
         
         searchBtn.addActionListener(e -> openSearchDialog());
 
+        // [추가 버튼]
         addBtn.addActionListener(e -> {
             if (!ensureUserBound()) return;
             
+            String userId = UserSession.getInstance().getUserId();
+
             TaskDialog dialog = new TaskDialog(
                 (JFrame) SwingUtilities.getWindowAncestor(this), 
                 currentDate, 
-                currentUserId
+                userId
             );
             dialog.setVisible(true);
 
             Task t = dialog.getTask();
             if (t == null) return;
 
-            t.setUserId(currentUserId);
+            t.setUserId(userId);
             
-            // INSERT도 백그라운드 처리 권장 (간단히 스레드로 처리)
             new Thread(() -> {
-                int newId = TodoDao.insert(t);
+                int newId = todoController.addTask(t);
                 t.setId(newId);
-                SwingUtilities.invokeLater(() -> model.addTask(t));
+                SwingUtilities.invokeLater(() -> {
+                    model.addTask(t);
+                    notifyListeners(); // ★ [3단계 추가] 알림 발송
+                });
             }).start();
         });
 
@@ -182,6 +187,7 @@ public class TaskPanel extends JPanel {
             openEditDialog(viewRow); 
         });
 
+        // [삭제 버튼]
         delBtn.addActionListener(e -> {
             int viewRow = table.getSelectedRow();
             if (viewRow < 0) {
@@ -196,51 +202,47 @@ public class TaskPanel extends JPanel {
             int row = table.convertRowIndexToModel(viewRow);
             Task t = model.getTaskAt(row);
             
-            // DELETE 백그라운드 처리
             new Thread(() -> {
-                TodoDao.delete(t.getId(), t.getUserId());
-                SwingUtilities.invokeLater(() -> model.removeAt(row));
+                todoController.deleteTask(t.getId(), t.getUserId());
+                SwingUtilities.invokeLater(() -> {
+                    model.removeAt(row);
+                    notifyListeners(); // ★ [3단계 추가] 알림 발송
+                });
             }).start();
         });
 
         shareBtn.addActionListener(e -> {
-            // 1. 선택된 일정 확인
             int viewRow = table.getSelectedRow();
             if (viewRow < 0) {
                 JOptionPane.showMessageDialog(this, "공유할 일정을 선택해주세요.");
                 return;
             }
             
-            // 2. 현재 로그인 여부 확인
             if (!ensureUserBound()) return;
 
-            // 3. Task 객체 가져오기
+            String userId = UserSession.getInstance().getUserId();
+
             int row = table.convertRowIndexToModel(viewRow);
             Task task = model.getTaskAt(row);
 
-            // 4. 친구 목록 불러오기 (팝업에 띄우기 위해)
-            List<String> friends = friendService.getFriends(currentUserId);
+            List<String> friends = friendService.getFriends(userId);
             if (friends.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "공유할 친구가 없습니다. 먼저 친구를 추가해주세요.");
                 return;
             }
 
-            // 5. 친구 선택 팝업 띄우기
             String selectedFriend = (String) JOptionPane.showInputDialog(
                     this,
                     "'" + task.getTitle() + "' 일정을 누구에게 공유하시겠습니까?",
                     "일정 공유",
                     JOptionPane.QUESTION_MESSAGE,
                     null,
-                    friends.toArray(), // 친구 리스트 배열
-                    friends.get(0)     // 기본 선택값
+                    friends.toArray(), 
+                    friends.get(0)     
             );
 
-            // 6. 선택 후 공유 로직 실행
             if (selectedFriend != null) {
-                // FriendService에 shareTodo 메서드가 있다고 가정 (또는 DAO 직접 호출)
-                // 만약 Service에 메서드가 없다면 아래 참고 코드를 Service에 추가해야 함
-                boolean success = friendService.shareTodo(task.getId(), currentUserId, selectedFriend);
+                boolean success = friendService.shareTodo(task.getId(), userId, selectedFriend);
                 
                 if (success) {
                     JOptionPane.showMessageDialog(this, selectedFriend + "님에게 일정을 공유했습니다!");
@@ -251,6 +253,7 @@ public class TaskPanel extends JPanel {
         });
     }
 
+    // [수정 다이얼로그 처리]
     private void openEditDialog(int viewRow) {
         int row = table.convertRowIndexToModel(viewRow);
         Task original = model.getTaskAt(row);
@@ -262,13 +265,27 @@ public class TaskPanel extends JPanel {
         Task updated = dialog.getTask();
         if (updated == null) return;
 
-        // UPDATE 백그라운드 처리
         new Thread(() -> {
             updated.setId(original.getId());
             updated.setUserId(original.getUserId());
-            TodoDao.update(updated);
-            SwingUtilities.invokeLater(() -> model.updateTask(row, updated));
+            todoController.updateTask(updated);
+            SwingUtilities.invokeLater(() -> {
+                model.updateTask(row, updated);
+                notifyListeners(); // ★ [3단계 추가] 알림 발송
+            });
         }).start();
+    }
+
+    // ★ [3단계 추가] 리스너 등록 메서드 (MainPanel에서 호출)
+    public void addListener(TaskUpdateListener listener) {
+        listeners.add(listener);
+    }
+
+    // ★ [3단계 추가] 리스너들에게 알림 보내는 메서드
+    private void notifyListeners() {
+        for (TaskUpdateListener listener : listeners) {
+            listener.onTaskUpdated();
+        }
     }
 
     private void sortByLatestIdDesc() {
@@ -284,52 +301,45 @@ public class TaskPanel extends JPanel {
     }
 
     private int priorityTextToInt(String s) {
-        if ("높음".equals(s)) return 1;
-        if ("보통".equals(s)) return 2;
-        if ("낮음".equals(s)) return 3;
-        return 2;
+        for (Priority p : Priority.values()) {
+        if (p.getLabel().equals(s)) {
+            return p.getDbValue();
+        }
+    }
+        return Priority.MEDIUM.getDbValue();
     }
 
-    public void setCurrentUserId(String userId) { this.currentUserId = userId; }
-
-    // 로그아웃 시 TaskPanel 초기화
     public void clear() {
-        currentUserId = null;
         currentDate = null;
         selectedDateLabel.setText(" ");
         model.getAll().clear();
         model.fireTableDataChanged();
     }
 
-    public void initAfterLogin(String userId) {
-        setCurrentUserId(userId);
+    public void initAfterLogin() {
         loadTasksForDate(LocalDate.now());
     }
 
-    // ★ [핵심 수정] DB 조회를 백그라운드 스레드(SwingWorker)에서 실행
     public void loadTasksForDate(LocalDate date) {
         this.currentDate = date;
         selectedDateLabel.setText(date.format(DateTimeFormatter.ofPattern("MM월 dd일 (E)")));
         
-        // 로딩 중 표시 (선택 사항: 커서 변경 등)
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
-        // SwingWorker: <결과 타입, 중간 처리 타입>
         SwingWorker<List<Task>, Void> worker = new SwingWorker<>() {
             @Override
             protected List<Task> doInBackground() throws Exception {
-                // 백그라운드 스레드에서 DB 조회 수행
-                if (currentUserId != null && !currentUserId.isBlank()) {
-                    return TodoDao.findByDate(currentUserId, date);
+                String userId = UserSession.getInstance().getUserId();
+                if (userId != null && !userId.isBlank()) {
+                    return todoController.getTasksByDate(userId, date);
                 }
                 return new ArrayList<>();
             }
 
             @Override
             protected void done() {
-                // 작업 완료 후 UI 갱신 (EDT에서 실행됨)
                 try {
-                    List<Task> tasks = get(); // doInBackground의 리턴값 받기
+                    List<Task> tasks = get(); 
                     model.getAll().clear();
                     model.getAll().addAll(tasks);
                     model.fireTableDataChanged();
@@ -337,16 +347,16 @@ public class TaskPanel extends JPanel {
                     e.printStackTrace();
                     JOptionPane.showMessageDialog(TaskPanel.this, "데이터 로드 중 오류 발생");
                 } finally {
-                    setCursor(Cursor.getDefaultCursor()); // 커서 복구
+                    setCursor(Cursor.getDefaultCursor()); 
                 }
             }
         };
         
-        worker.execute(); // 작업 시작
+        worker.execute(); 
     }
 
     private boolean ensureUserBound() {
-        if (currentUserId == null || currentUserId.isBlank()) {
+        if (!UserSession.getInstance().isLoggedIn()) {
             JOptionPane.showMessageDialog(this, "로그인 사용자 정보를 먼저 설정하세요.");
             return false;
         }
@@ -382,7 +392,6 @@ public class TaskPanel extends JPanel {
         JTable resultTable = new JTable(resultModel);
         Theme.styleTable(resultTable);
         
-        // 검색 결과창 가운데 정렬 추가
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         for(int i=1; i<resultTable.getColumnCount(); i++) {
@@ -419,11 +428,7 @@ public class TaskPanel extends JPanel {
                 return;
             }
 
-            // 검색도 백그라운드 처리 (선택 사항)
             new Thread(() -> {
-                // 여기서는 현재 메모리에 있는 model.getAll()을 뒤지는 것이므로 빠르지만,
-                // 만약 DB 전체 검색이라면 SwingWorker를 써야 함.
-                // 현재 코드는 메모리 검색이므로 그대로 둠.
                 SwingUtilities.invokeLater(() -> {
                     resultModel.setRowCount(0);
                     for (Task t : model.getAll()) {
@@ -431,8 +436,8 @@ public class TaskPanel extends JPanel {
                             (t.getStartDate() != null && t.getStartDate().contains(keyword)) ||
                             (t.getEndDate() != null && t.getEndDate().contains(keyword))) {
 
-                            String priorityText = (t.getPriority() == 1 ? "높음" :
-                                                   t.getPriority() == 2 ? "보통" : "낮음");
+                            String priorityText = (t.getPriority() == Priority.HIGH ? "높음" :
+                                                   t.getPriority() == Priority.MEDIUM ? "보통" : "낮음");
 
                             resultModel.addRow(new Object[]{
                                     t.isCompleted(), t.getTitle(), t.getStartDate(), t.getEndDate(), priorityText

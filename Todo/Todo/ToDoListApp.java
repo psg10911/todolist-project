@@ -46,34 +46,33 @@ public class ToDoListApp extends JFrame {
     }
 
     // LoginPanel에서 성공하면 호출
-    public void initAfterLogin(String userId) {
-        
-        // ★ [핵심 수정 로직] ★
-        // 1. 로그인한 ID가 'user'이고 (특정 ID에만 시드 데이터 주입),
-        // 2. 'user' 계정에 할 일이 하나도 없을 때만 로드합니다. (딱 한 번만 로드)
+    public void initAfterLogin() {
+        // ★ [변경] 싱글톤에서 ID 조회
+        String userId = UserSession.getInstance().getUserId();
+
         if ("user".equals(userId) && !TodoDao.hasAnyTodo(userId)) {            
-            // TodoFile.readAllAndInsert는 파일에 적힌 ID(user)를 그대로 사용하기 때문에, 
-            // 파일 내용을 로드하면 DB에 user의 할 일이 생깁니다.
             TodoFile.readAllAndInsert("Todo\\Todo\\Todo_persona.txt");
-            
             System.out.println("초기 데이터가 'user' 계정에 로드되었습니다.");
         }
-        // 'pko'와 같은 다른 ID가 로그인하면, if 조건에 걸리지 않아 로드 자체가 되지 않습니다.
 
-        mainPanel.getTaskPanel().initAfterLogin(userId);
-        mainPanel.setCurrentUserId(userId);
+        mainPanel.initAfterLogin();
+        
+        // ★ [변경] 매개변수 없이 호출 (TaskPanel이 알아서 싱글톤 씀)
+        mainPanel.getTaskPanel().initAfterLogin();
+        
+        // MainPanel의 다른 메서드들도 비슷하게 userId를 제거할 수 있습니다.
+        // (지금은 TaskPanel 위주로 진행하므로 일단 둡니다)
         mainPanel.getFriendListPanel().setUser(userId);
+        
         showPanel("MAIN");
     }
     // 로그아웃 메서드
     public void logout() {
-        // MainPanel 초기화
+        // ★ [추가] 세션 초기화
+        UserSession.getInstance().logout();
+
         mainPanel.clear();
-        
-        // LoginPanel 초기화
         loginPanel.clearFields();
-        
-        // 로그인 패널 표시
         cardLayout.show(cardPanel, "LOGIN");
     }
 
